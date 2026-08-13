@@ -109,6 +109,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
 .flash{animation:flashB .7s 3}
 .p3d-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:12.5px}
 #palGrid{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px}
+#palGrid .pg{flex-basis:100%;font-size:11px;font-weight:700;color:var(--sub);margin:4px 0 -3px}
 .chip{display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 8px 5px;border:1.5px solid var(--line);border-radius:10px;background:#fff;font-size:10.5px;color:var(--sub);min-width:62px;cursor:pointer;transition:.12s}
 .chip:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-1px)}
 .chip canvas{width:44px;height:34px;pointer-events:none}
@@ -352,14 +353,22 @@ const CAT={
  t2:{n:'2名テーブル 500×600（椅子は500側）',s:'2名卓',w:500,h:600,seats:2},
  high:{n:'ハイテーブル 500×600（椅子は500側）',s:'ハイ卓',w:500,h:600,seats:2},
  round:{n:'丸テーブル 650φ',s:'丸卓',w:650,h:650,seats:3},
- counter:{n:'カウンター',s:'カウンター',w:2400,h:500,rez:1},
+ counter:{n:'バーカウンター 4800×600×H1070（伸縮可）',s:'カウンター',w:4800,h:600,rez:1},
  sofa:{n:'ベンチソファ',s:'ソファ',w:1600,h:550,rez:1},
- dart:{n:'ダーツレーン（マシン＋2440）',s:'ダーツ',w:700,h:3150},
+ dart:{n:'ダーツレーン（台650×574・壁からライン2760・奥行3760）',s:'ダーツ',w:700,h:3760},
  kitchen:{n:'厨房ゾーン',s:'厨房',w:3000,h:2200,rez:1,zone:1},
+ fridge:{n:'冷蔵冷凍庫 1200×600',s:'冷蔵冷凍',w:1200,h:600,kit:1,hgt:1950},
+ freezer:{n:'縦型冷凍庫 570×520',s:'縦冷凍',w:570,h:520,kit:1,hgt:1850},
+ ice:{n:'製氷機 1000×600',s:'製氷機',w:1000,h:600,kit:1,hgt:800},
+ dfridge:{n:'ドリンク冷蔵庫 880×450',s:'ドリンク冷蔵',w:880,h:450,kit:1,hgt:1900},
+ sink2:{n:'2層シンク 1200×600',s:'2層シンク',w:1200,h:600,kit:1,hgt:850,sink:2},
+ sink1:{n:'1層シンク 450×600',s:'1層シンク',w:450,h:600,kit:1,hgt:850,sink:1},
+ work:{n:'作業台 1180×600（伸縮可・ガス台兼用）',s:'作業台',w:1180,h:600,rez:1,kit:1,hgt:850},
+ shelf:{n:'ルミナス棚 900×460（伸縮可）',s:'ルミナス棚',w:900,h:460,rez:1,kit:1,hgt:1800,rack:1},
  storage:{n:'倉庫・バックヤード',s:'倉庫',w:1800,h:1500,rez:1,zone:1},
- wc:{n:'トイレ',s:'トイレ',w:1700,h:1600,rez:1},
- reg:{n:'レジ',s:'レジ',w:1200,h:600},
- door:{n:'入口（幅は自由に変更可・造作壁に重ねて配置）',s:'入口',w:900,h:200,rez:1,fixH:1},
+ wc:{n:'トイレ 1300×1800',s:'トイレ',w:1300,h:1800,rez:1},
+ reg:{n:'レジ台（ルミナス）900×450',s:'レジ',w:900,h:450},
+ door:{n:'入口 W1100（幅変更可・造作壁に重ねて配置）',s:'入口',w:1100,h:200,rez:1,fixH:1},
  door2:{n:'小ドア（トイレ・バックヤード用 W650）',s:'小ドア',w:650,h:150,rez:1,fixH:1},
  wall:{n:'間仕切り（腰上・高さ1.5m・厚み固定）',s:'間仕切り',w:1500,h:100,rez:1,fixH:1},
  swall:{n:'造作壁（天井まで）',s:'造作壁',w:1800,h:100,rez:1},
@@ -784,16 +793,16 @@ function seedAuto(){
     const free=(sx1-sx0)-(obstacles.length?2400:0);
     const len=Math.min(free*Math.min(1,g.counterRatio*1.6),free);
     if(len>=1800){
-      items.push(mk('counter',sx0+len/2,sy0+250,Math.round(len/50)*50,500));
-      sy0+=250+500+750;
+      items.push(mk('counter',sx0+len/2,sy0+300,Math.round(len/50)*50,600));
+      sy0+=300+600+750;
     }
   }
   // ダーツレーン（左壁沿い・ボードを左壁に向ける＝既存店と同じ構成）
   if(g.id==='darts'){
     const n=Math.min(4,Math.floor((sy1-sy0-400)/950));
     for(let i=0;i<n;i++)
-      items.push(mk('dart',sx0+1625,sy0+750+i*950,undefined,undefined,270));
-    if(n>0)sx0+=3250+400;
+      items.push(mk('dart',sx0+1880,sy0+750+i*950,undefined,undefined,270));
+    if(n>0)sx0+=3760+400;
   }
   // テーブル帯
   const bandH=750+CH*2;let y=sy0,cnt={t4:0,t2:0};
@@ -927,16 +936,26 @@ function renderEd(){
     }else if(t==='dart'){
       ctx.fillStyle='rgba(35,35,45,.75)';ctx.fillRect(-w/2,-h/2,w,h);
       ctx.strokeStyle='#26262b';ctx.strokeRect(-w/2,-h/2,w,h);
-      // マシン筐体
-      ctx.fillStyle='#1b1b20';ctx.fillRect(-325,-h/2,650,450);
+      // マシン筐体 650×574（恵比寿基本寸法）
+      ctx.fillStyle='#1b1b20';ctx.fillRect(-325,-h/2,650,574);
       // ボード
-      ctx.beginPath();ctx.arc(0,-h/2+235,195,0,7);ctx.fillStyle='#2e2e33';ctx.fill();
+      ctx.beginPath();ctx.arc(0,-h/2+287,195,0,7);ctx.fillStyle='#2e2e33';ctx.fill();
       ctx.strokeStyle=cc.accent;ctx.lineWidth=lw*1.5;ctx.stroke();
-      ctx.beginPath();ctx.arc(0,-h/2+235,65,0,7);ctx.fillStyle=cc.accent;ctx.fill();
-      // スローライン（ボード面から2440）
-      const ly=-h/2+450+2440;
+      ctx.beginPath();ctx.arc(0,-h/2+287,65,0,7);ctx.fillStyle=cc.accent;ctx.fill();
+      // スローライン（壁面＝台背面から2760）
+      const ly=-h/2+2760;
       ctx.strokeStyle='#f5d76e';ctx.lineWidth=lw*1.6;
       ctx.beginPath();ctx.moveTo(-w/2+40,ly);ctx.lineTo(w/2-40,ly);ctx.stroke();
+    }else if(CAT[t].kit){
+      ctx.fillStyle='#e2e3e5';ctx.fillRect(-w/2,-h/2,w,h);
+      ctx.strokeStyle='#8a8f94';ctx.strokeRect(-w/2,-h/2,w,h);
+      if(CAT[t].sink===1)ctx.strokeRect(-w/2+80,-h/2+80,w-160,h-160);
+      else if(CAT[t].sink===2){
+        ctx.strokeRect(-w/2+70,-h/2+70,w/2-105,h-140);
+        ctx.strokeRect(35,-h/2+70,w/2-105,h-140);
+      }else if(CAT[t].rack){
+        for(let x=-w/2+150;x<w/2-40;x+=150){ctx.beginPath();ctx.moveTo(x,-h/2);ctx.lineTo(x,h/2);ctx.stroke()}
+      }
     }else if(t==='sofa'){
       const fc=fabricOf(it);
       ctx.fillStyle=fc;ctx.fillRect(-w/2,-h/2,w,h);
@@ -981,6 +1000,7 @@ function renderEd(){
     if(t==='door')drawLabel(ctx,it.cx,it.cy+300,'入口','#1f6f5c',11);
     if(t==='door2')drawLabel(ctx,it.cx,it.cy+280,'ドア','#7d6f5c',10);
     if(t==='beam')drawLabel(ctx,it.cx,it.cy,'梁','#8d8880',10);
+    if(CAT[t].kit)drawLabel(ctx,it.cx,it.cy,CAT[t].s,'#5c6166',9);
   });
   // 追加直後のハイライトリング
   if(flash){
@@ -1154,9 +1174,14 @@ function thumb(type){
     x.strokeStyle='#9a938b';x.setLineDash([260,160]);x.strokeRect(-d.w/2,-d.h/2,d.w,d.h);
   }else if(t==='dart'){
     x.fillStyle='#2a2a31';x.fillRect(-d.w/2,-d.h/2,d.w,d.h);
-    x.fillStyle='#111';x.fillRect(-325,-d.h/2,650,450);
-    x.beginPath();x.arc(0,-d.h/2+235,195,0,7);x.strokeStyle='#c96f2c';x.stroke();
-    x.strokeStyle='#f5d76e';x.beginPath();x.moveTo(-d.w/2+60,-d.h/2+2890);x.lineTo(d.w/2-60,-d.h/2+2890);x.stroke();
+    x.fillStyle='#111';x.fillRect(-325,-d.h/2,650,574);
+    x.beginPath();x.arc(0,-d.h/2+287,195,0,7);x.strokeStyle='#c96f2c';x.stroke();
+    x.strokeStyle='#f5d76e';x.beginPath();x.moveTo(-d.w/2+60,-d.h/2+2760);x.lineTo(d.w/2-60,-d.h/2+2760);x.stroke();
+  }else if(CAT[t].kit){
+    x.fillStyle='#e2e3e5';x.fillRect(-d.w/2,-d.h/2,d.w,d.h);
+    x.strokeStyle='#8a8f94';x.strokeRect(-d.w/2,-d.h/2,d.w,d.h);
+    if(CAT[t].sink)x.strokeRect(-d.w/2+90,-d.h/2+90,d.w-180,d.h-180);
+    if(CAT[t].rack)for(let px=-d.w/2+180;px<d.w/2-60;px+=180){x.beginPath();x.moveTo(px,-d.h/2);x.lineTo(px,d.h/2);x.stroke()}
   }else if(t==='sofa'){
     x.fillStyle=fab;x.fillRect(-d.w/2,-d.h/2,d.w,d.h);
     x.fillStyle=shade(fab,.7);x.fillRect(-d.w/2,-d.h/2,d.w,150);
@@ -1197,12 +1222,22 @@ function addItem(t){
   c.scrollIntoView({behavior:'smooth',block:'nearest'});
   syncSel();render3D();updateAll();animFlash();
 }
-Object.keys(CAT).forEach(k=>{
-  const b=document.createElement('button');b.className='chip';b.title=CAT[k].n+'を追加';
-  b.appendChild(thumb(k));
-  const sp=document.createElement('span');sp.textContent=CAT[k].s;b.appendChild(sp);
-  b.onclick=()=>addItem(k);
-  $('palGrid').appendChild(b);
+const PAL_GROUPS=[
+ {t:'客席・ダーツ',k:['t2','t4','t6','high','round','counter','sofa','dart']},
+ {t:'厨房・設備（恵比寿基本寸法）',k:['kitchen','fridge','freezer','ice','dfridge','sink2','sink1','work','shelf','reg']},
+ {t:'建築・その他',k:['storage','wc','door','door2','wall','swall','pillar','beam']}
+];
+PAL_GROUPS.forEach(g=>{
+  const lb=document.createElement('span');lb.className='pg';lb.textContent=g.t;
+  $('palGrid').appendChild(lb);
+  g.k.forEach(k=>{
+    if(!CAT[k])return;
+    const b=document.createElement('button');b.className='chip';b.title=CAT[k].n+'を追加';
+    b.appendChild(thumb(k));
+    const sp=document.createElement('span');sp.textContent=CAT[k].s;b.appendChild(sp);
+    b.onclick=()=>addItem(k);
+    $('palGrid').appendChild(b);
+  });
 });
 $('bgV').onchange=e=>{if(S.bg)S.bg.visible=e.target.checked;renderEd()};
 $('bgOp').oninput=e=>{if(S.bg)S.bg.opacity=e.target.value/100;renderEd()};
@@ -1479,27 +1514,42 @@ function buildScene(){
     }else if(t==='dart'){
       P.push({pts:[loc2wz(it,-w/2,-h/2,3),loc2wz(it,w/2,-h/2,3),loc2wz(it,w/2,h/2,3),loc2wz(it,-w/2,h/2,3)],
               col:'#26262c',n:{x:0,y:0,z:1}});
-      const mp=loc2w(it,0,-h/2+225);
-      addBox(P,mp.x,mp.y,rot,650,450,0,2100,'#1d1d22');
+      const mp=loc2w(it,0,-h/2+287);
+      addBox(P,mp.x,mp.y,rot,650,574,0,2395,'#1d1d22');
       // ボード面（筐体前面）
       const rd=rot*Math.PI/180,dir={x:Math.sin(rd),y:Math.cos(rd)}; // ローカル+y方向
-      const fp=loc2w(it,0,-h/2+455);
+      const fp=loc2w(it,0,-h/2+580);
       addDisk(P,{x:fp.x,y:fp.y,z:1730},dir,235,'#33333a');
       addDisk(P,{x:fp.x+dir.x*6,y:fp.y+dir.y*6,z:1730},dir,80,cc.accent);
-      // スローライン
-      const l1=loc2w(it,-w/2+50,-h/2+450+2440),l2=loc2w(it,w/2-50,-h/2+450+2440);
+      // スローライン（壁面から2760）
+      const l1=loc2w(it,-w/2+50,-h/2+2760),l2=loc2w(it,w/2-50,-h/2+2760);
       P.push({pts:[{x:l1.x,y:l1.y,z:5},{x:l2.x,y:l2.y,z:5},{x:l2.x,y:l2.y,z:6},{x:l1.x,y:l1.y,z:6}],col:'#f5d76e',n:{x:0,y:0,z:1},line:1});
       lights.push({x:mp.x,y:mp.y,z:2150,r:120,c:'#ffd7a0'});
     }else if(t==='counter'){
+      // バーカウンター H1070（恵比寿基本寸法）／バーチェア300角
       const wc2=woodOf(it),fc=fabricOf(it);
-      addBox(P,cx,cy,rot,w,h,0,950,shade(wc2,.85));
-      addBox(P,cx,cy,rot,w+80,h+80,950,1000,wc2);
+      addBox(P,cx,cy,rot,w,h,0,1020,shade(wc2,.85));
+      addBox(P,cx,cy,rot,w+80,h+80,1020,1070,wc2);
       chairsFor(it).forEach(chp=>{
         const p=loc2w(it,chp.lx,chp.ly);
-        addBox(P,p.x,p.y,rot,90,90,0,620,cc.metal);
-        addBox(P,p.x,p.y,rot,340,340,620,680,fc);
+        addBox(P,p.x,p.y,rot,90,90,0,700,cc.metal);
+        addBox(P,p.x,p.y,rot,300,300,700,760,fc);
       });
       lights.push({x:cx,y:cy,z:Math.min(H-260,2400),r:150,c:'#ffe2ae',pend:1,rot,w});
+    }else if(CAT[t].kit){
+      // 厨房機器（恵比寿基本寸法）
+      const col=t==='shelf'?'#9aa0a6':(t==='sink1'||t==='sink2'||t==='work')?'#b6bcc2':'#cfd1d5';
+      const hg=CAT[t].hgt||850;
+      if(CAT[t].rack){
+        const ix=w/2-30,iy=h/2-30;
+        [[-ix,-iy],[ix,-iy],[ix,iy],[-ix,iy]].forEach(([lx,ly])=>{
+          const p=loc2w(it,lx,ly);addBox(P,p.x,p.y,rot,40,40,0,hg,col);
+        });
+        [.25,.5,.75,1].forEach(f=>addBox(P,cx,cy,rot,w,h,hg*f-30,hg*f,col));
+      }else{
+        addBox(P,cx,cy,rot,w,h,0,hg,col);
+        if(CAT[t].sink)addBox(P,cx,cy,rot,Math.max(200,w-120),Math.max(200,h-120),hg,hg+15,shade(col,.72));
+      }
     }else{ // テーブル類
       const th=t==='high'?1000:700;
       const wc2=woodOf(it),fc=fabricOf(it),lg=legsOf(it);
@@ -1655,7 +1705,7 @@ function updateAll(){
   else if(kr<g.kitchenRatio*.85)push('warn',`厨房比率 ${Math.round(kr*100)}％（目安 ${Math.round(g.kitchenRatio*100)}％）`,'厨房が手狭です。提供スピードが頭打ちになる可能性。');
   else push('ok',`厨房 ${kitA.toFixed(1)}㎡（${Math.round(kr*100)}％）`,'業態として妥当な厨房面積です。');
   if(darts>0){
-    push('ok',`ダーツレーン ${darts}面`,'黄色線がスローライン（ボード面から2,440mm）。ライン後方に600mm以上の通行余地があるか、図で確認してください。レーン正面を横切る動線はNGです。');
+    push('ok',`ダーツレーン ${darts}面`,'黄色線がスローライン（壁面から2,760mm・レーン必要奥行3,760mm＝恵比寿基本寸法）。ライン後方に600mm以上の通行余地があるか、図で確認してください。レーン正面を横切る動線はNGです。');
   }
   if(!S.items.some(i=>i.type==='door'))push('warn','入口が未配置','「入口」を置くと動線の検討がしやすくなります。');
   if(!S.items.some(i=>i.type==='wc'))push('warn','トイレが未配置','ビル共用トイレ前提なら問題ありませんが、営業許可の要件を保健所に確認してください。');
