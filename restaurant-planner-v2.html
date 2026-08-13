@@ -179,8 +179,8 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
     <div class="form" style="margin-top:20px;padding-top:18px;border-top:1px solid var(--line)">
       <div><label class="f">天井高 <span>m</span></label>
         <div class="range-row"><input type="range" id="ceil" min="2.2" max="4.5" step="0.05" value="2.7"><b id="ceilV"></b></div></div>
-      <div><label class="f">想定客単価 <span>円</span></label><input type="number" id="price" min="300" step="100" value="3000"></div>
-      <div><label class="f">1日の想定回転数 <span>回</span></label><input type="number" id="turns" min="0.5" max="10" step="0.1" value="2"></div>
+      <div><label class="f">想定客単価 <span>円</span></label><input type="number" id="price" min="300" step="100" value="5000"></div>
+      <div><label class="f">1日の想定回転数 <span>回</span></label><input type="number" id="turns" min="0.5" max="10" step="0.1" value="1.0"></div>
     </div>
     <div class="nav"><span id="pdfWarn" style="color:var(--bad);font-size:12.5px;font-weight:700;align-self:center"></span><button class="btn" id="n2">次へ</button></div>
   </section>
@@ -276,7 +276,7 @@ function mixc(h1,h2,t){const a=hex2rgb(h1),b=hex2rgb(h2);return rgb2hex(a[0]+(b[
 
 /* ================= マスタ ================= */
 const GENRES=[
- {id:'darts',n:'ダーツバー',ic:'🎯',kitchenRatio:.15,counterRatio:.5,mix:{t2:.6,t4:.4},turns:1.8,price:3000,seatArea:1.8,
+ {id:'darts',n:'ダーツバー',ic:'🎯',kitchenRatio:.15,counterRatio:.5,mix:{t2:.6,t4:.4},turns:1.0,price:5000,seatArea:1.8,
   tip:'ソフトダーツのスローラインはボード面から2,440mm。ライン後方に最低600mmの通行余地を確保し、レーン脇の席は投げ手の肘と干渉しない配置にします。マシンは電源と通信(LAN/Wi-Fi)が必要です。'},
  {id:'bar',n:'バー',ic:'🍸',kitchenRatio:.18,counterRatio:.6,mix:{t2:.7,t4:.3},turns:1.5,price:3000,seatArea:1.4,
   tip:'照度を落とすぶん、手元とボトル棚の明かりで見せ場をつくります。'},
