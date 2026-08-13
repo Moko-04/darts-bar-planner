@@ -359,9 +359,9 @@ const CAT={
  storage:{n:'倉庫・バックヤード',s:'倉庫',w:1800,h:1500,rez:1,zone:1},
  wc:{n:'トイレ',s:'トイレ',w:1700,h:1600,rez:1},
  reg:{n:'レジ',s:'レジ',w:1200,h:600},
- door:{n:'入口（幅は自由に変更可・造作壁に重ねて配置）',s:'入口',w:900,h:200,rez:1},
- door2:{n:'小ドア（トイレ・バックヤード用 W650）',s:'小ドア',w:650,h:150,rez:1},
- wall:{n:'間仕切り（腰上・高さ1.5m）',s:'間仕切り',w:1500,h:100,rez:1},
+ door:{n:'入口（幅は自由に変更可・造作壁に重ねて配置）',s:'入口',w:900,h:200,rez:1,fixH:1},
+ door2:{n:'小ドア（トイレ・バックヤード用 W650）',s:'小ドア',w:650,h:150,rez:1,fixH:1},
+ wall:{n:'間仕切り（腰上・高さ1.5m・厚み固定）',s:'間仕切り',w:1500,h:100,rez:1,fixH:1},
  swall:{n:'造作壁（天井まで）',s:'造作壁',w:1800,h:100,rez:1},
  pillar:{n:'柱',s:'柱',w:600,h:600,rez:1},
  beam:{n:'梁（天井下がり）',s:'梁',w:3000,h:300,rez:1}
@@ -1021,10 +1021,12 @@ function findOverlaps(){
   return set;
 }
 /* --- 操作 --- */
-function resHandles(it){ // 伸縮ハンドル（+x端 / +y端の中点）
+function resHandles(it){ // 伸縮ハンドル（+x端 / +y端の中点。fixH指定の什器は長さのみ）
   const rd=it.rot*Math.PI/180,cs=Math.cos(rd),sn=Math.sin(rd);
   const pt=(lx,ly)=>({x:it.cx+lx*cs-ly*sn,y:it.cy+lx*sn+ly*cs});
-  return[{axis:'w',...pt(it.w/2,0)},{axis:'h',...pt(0,it.h/2)}];
+  const hs=[{axis:'w',...pt(it.w/2,0)}];
+  if(!CAT[it.type].fixH)hs.push({axis:'h',...pt(0,it.h/2)});
+  return hs;
 }
 function pushUndo(){S.undo.push(JSON.stringify(S.items));if(S.undo.length>60)S.undo.shift()}
 function popUndo(){if(!S.undo.length)return;S.items=JSON.parse(S.undo.pop());S.sel=null;syncSel();renderEd();render3D();updateAll()}
@@ -1214,6 +1216,8 @@ function syncSel(){
   if(CAT[it.type].rez){
     $('selSize').classList.remove('hide');
     $('selW').value=it.w;$('selH').value=it.h;
+    $('selH').disabled=!!CAT[it.type].fixH;
+    $('selH').title=CAT[it.type].fixH?'この什器の厚みは固定です':'';
   }else $('selSize').classList.add('hide');
   // 仕上げスウォッチ
   const hasW=WOOD_T.includes(it.type),hasF=FAB_T.includes(it.type),hasL=LEG_T.includes(it.type);
@@ -1246,7 +1250,7 @@ $('legB').onclick=()=>{
 };
 $('selW').onchange=e=>{const it=S.items.find(i=>i.id===S.sel);if(!it)return;
   pushUndo();it.w=clamp(+e.target.value,200,20000);renderEd();render3D();updateAll();syncSel()};
-$('selH').onchange=e=>{const it=S.items.find(i=>i.id===S.sel);if(!it)return;
+$('selH').onchange=e=>{const it=S.items.find(i=>i.id===S.sel);if(!it||CAT[it.type].fixH)return;
   pushUndo();it.h=clamp(+e.target.value,80,20000);renderEd();render3D();updateAll();syncSel()};
 
 /* ================= 保存・読込（物件ライブラリ＋自動保存） ================= */
