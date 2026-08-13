@@ -854,11 +854,22 @@ function chairsFor(it){
     for(let k=0;k<3;k++){const a=(90+k*120)*Math.PI/180;
       out.push({lx:Math.cos(a)*(w/2+230),ly:Math.sin(a)*(w/2+230)})}
   }else if(t==='poker'||t==='poker10'){
-    // 楕円の周に沿って等間隔配置。先頭（下辺中央）がディーラー席
+    // 楕円の「弧長」で等間隔に配置（角度等分だと両端に密集する）。先頭＝下辺中央がディーラー
     const n=(t==='poker10'?10:8)+1;
-    for(let k=0;k<n;k++){
-      const a=(90+k*360/n)*Math.PI/180;
-      out.push({lx:Math.cos(a)*(w/2+240),ly:Math.sin(a)*(h/2+240),dealer:k===0});
+    const A=w/2+240,B=h/2+240,M=720;
+    const cum=[0];let L=0;
+    let px=0,py=B; // t=90°スタート（下辺中央）
+    for(let i=1;i<=M;i++){
+      const t2=Math.PI/2+i/M*2*Math.PI;
+      const x=A*Math.cos(t2),y=B*Math.sin(t2);
+      L+=Math.hypot(x-px,y-py);cum.push(L);px=x;py=y;
+    }
+    let k=0;
+    for(let i=0;i<n;i++){
+      const target=i/n*L;
+      while(cum[k]<target)k++;
+      const t2=Math.PI/2+k/M*2*Math.PI;
+      out.push({lx:A*Math.cos(t2),ly:B*Math.sin(t2),dealer:i===0});
     }
   }else if(t==='counter'){
     const L=Math.max(w,h),m=Math.floor(L/600);
