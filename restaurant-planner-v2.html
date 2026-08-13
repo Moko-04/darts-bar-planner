@@ -1124,11 +1124,11 @@ function findOverlaps(){
   return set;
 }
 /* --- 操作 --- */
-function resHandles(it){ // 伸縮ハンドル（+x端 / +y端の中点。fixH指定の什器は長さのみ）
+function resHandles(it){ // 伸縮ハンドル（長さ方向は両端。fixH指定の什器は厚み方向なし）
   const rd=it.rot*Math.PI/180,cs=Math.cos(rd),sn=Math.sin(rd);
   const pt=(lx,ly)=>({x:it.cx+lx*cs-ly*sn,y:it.cy+lx*sn+ly*cs});
-  const hs=[{axis:'w',...pt(it.w/2,0)}];
-  if(!CAT[it.type].fixH)hs.push({axis:'h',...pt(0,it.h/2)});
+  const hs=[{axis:'w',sg:1,...pt(it.w/2,0)},{axis:'w',sg:-1,...pt(-it.w/2,0)}];
+  if(!CAT[it.type].fixH)hs.push({axis:'h',sg:1,...pt(0,it.h/2)},{axis:'h',sg:-1,...pt(0,-it.h/2)});
   return hs;
 }
 /* 壁・什器の縁への吸着。自分の左右(上下)端・中心を、相手の端・中心に合わせる */
@@ -1186,7 +1186,7 @@ function hitTest(w){
     const selIt=S.items.find(i=>i.id===S.sel);
     if(selIt&&CAT[selIt.type].rez){
       const hd=resHandles(selIt).find(h=>{const q=w2s(h);return Math.hypot(q.x-sp.x,q.y-sp.y)<15});
-      if(hd){pushUndo();drag={t:'resize',it:selIt,axis:hd.axis};return}
+      if(hd){pushUndo();drag={t:'resize',it:selIt,axis:hd.axis,sg:hd.sg};return}
     }
     const it=hitTest(w);
     if(it){S.sel=it.id;drag={t:'item',it,ox:w.x-it.cx,oy:w.y-it.cy,st:false}}
@@ -1226,23 +1226,35 @@ function hitTest(w){
         return best;
       };
       S.guides=[];
-      if(drag.axis==='w'){ // 反対側の端を固定して長さ変更
-        let nw=clamp(Math.round((lx+it.w/2)/50)*50,zone?600:300,25000);
+      const sg=drag.sg||1;                       // +1:進行側の端 / -1:反対側の端
+      if(drag.axis==='w'){ // 掴んでいない側の端は固定したまま長さ変更
+        const minW=zone?600:300;
+        let nw=clamp(Math.round((sg*lx+it.w/2)/50)*50,minW,25000);
         if(it.rot%90===0){                       // 軸が水平／垂直のときだけ吸着
           const horiz=it.rot%180===0;
-          const fx=it.cx-(it.w/2)*cs,fy=it.cy-(it.w/2)*sn;   // 固定端
-          const b=snapEdge(fx+nw*cs,fy+nw*sn,horiz);
+          const fx=it.cx-sg*(it.w/2)*cs,fy=it.cy-sg*(it.w/2)*sn;   // 固定端
+          const b=snapEdge(fx+sg*nw*cs,fy+sg*nw*sn,horiz);
           if(b){
             const cand=Math.abs(horiz?b.v-fx:b.v-fy);
-            if(cand>=(zone?600:300)&&cand<=25000){nw=Math.round(cand);S.guides=[horiz?{x:b.v}:{y:b.v}]}
+            if(cand>=minW&&cand<=25000){nw=Math.round(cand);S.guides=[horiz?{x:b.v}:{y:b.v}]}
           }
         }
         const d2=(nw-it.w)/2;
-        it.cx+=d2*cs;it.cy+=d2*sn;it.w=nw;
+        it.cx+=sg*d2*cs;it.cy+=sg*d2*sn;it.w=nw;
       }else{
-        let nh=clamp(Math.round((ly+it.h/2)/50)*50,it.type==='wall'?60:(zone?600:300),25000);
+        const minH=it.type==='wall'?60:(zone?600:300);
+        let nh=clamp(Math.round((sg*ly+it.h/2)/50)*50,minH,25000);
+        if(it.rot%90===0){
+          const horiz=it.rot%180!==0;            // h軸は w軸と直交
+          const fx=it.cx+sg*(it.h/2)*sn,fy=it.cy-sg*(it.h/2)*cs;   // 固定端
+          const b=snapEdge(fx-sg*nh*sn,fy+sg*nh*cs,horiz);
+          if(b){
+            const cand=Math.abs(horiz?b.v-fx:b.v-fy);
+            if(cand>=minH&&cand<=25000){nh=Math.round(cand);S.guides=[horiz?{x:b.v}:{y:b.v}]}
+          }
+        }
         const d2=(nh-it.h)/2;
-        it.cx+=-d2*sn;it.cy+=d2*cs;it.h=nh;
+        it.cx+=-sg*d2*sn;it.cy+=sg*d2*cs;it.h=nh;
       }
       syncSel();
     }
