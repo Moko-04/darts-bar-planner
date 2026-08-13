@@ -368,7 +368,9 @@ const CAT={
  poker:{n:'ポーカー台 2100×1100（8人掛け・オーバル）',s:'ポーカー8',w:2100,h:1100,seats:8},
  poker10:{n:'ポーカー台 2400×1200（10人掛け・オーバル）',s:'ポーカー10',w:2400,h:1200,seats:10},
  kitchen:{n:'カウンター内（通路 基本800／狭い場合650）',s:'カウンター内',w:4800,h:800,rez:1,zone:1},
- fridge:{n:'冷蔵冷凍庫 1200×600',s:'冷蔵冷凍',w:1200,h:600,kit:1,hgt:1950},
+ fridge:{n:'冷蔵・冷凍 1200×600',s:'冷蔵・冷凍',w:1200,h:600,kit:1,hgt:1950},
+ fridge2:{n:'冷蔵・冷蔵 1200×600',s:'冷蔵・冷蔵',w:1200,h:600,kit:1,hgt:1950},
+ freezer2:{n:'冷凍・冷凍 1200×600',s:'冷凍・冷凍',w:1200,h:600,kit:1,hgt:1950},
  freezer:{n:'縦型冷凍庫 570×520',s:'縦冷凍',w:570,h:520,kit:1,hgt:1850},
  ice:{n:'製氷機 1000×600',s:'製氷機',w:1000,h:600,kit:1,hgt:800},
  dfridge:{n:'ドリンク冷蔵庫 880×450',s:'ドリンク冷蔵',w:880,h:450,kit:1,hgt:1900},
@@ -1404,7 +1406,7 @@ function addItem(t){
 }
 const PAL_GROUPS=[
  {t:'客席・ダーツ',k:['t2','t4','t6','high','round','counter','sofa','dart','poker','poker10']},
- {t:'厨房・設備（恵比寿基本寸法）',k:['kitchen','fridge','freezer','ice','dfridge','showcase','sink2','sink1','work','shelf','reg']},
+ {t:'厨房・設備（恵比寿基本寸法）',k:['kitchen','fridge','fridge2','freezer2','freezer','ice','dfridge','showcase','sink2','sink1','work','shelf','reg']},
  {t:'建築・その他',k:['storage','wc','door','door2','wall','swall','pillar','beam','rect','circle']}
 ];
 PAL_GROUPS.forEach(g=>{
