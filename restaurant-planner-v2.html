@@ -1,0 +1,1716 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>店舗インテリア相談 v2 ─ 図面読込・自由レイアウト・3Dパース</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>try{pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'}catch(e){}</script>
+<style>
+:root{
+  --bg:#f6f4f1; --panel:#fff; --ink:#232025; --sub:#6f6a72;
+  --line:#e2ddd8; --accent:#1f6f5c; --accent-w:#e8f2ef; --warn:#c2571f; --bad:#b3352f;
+  --radius:14px; --shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.06);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",system-ui,sans-serif;
+  line-height:1.7;-webkit-font-smoothing:antialiased}
+header{background:var(--panel);border-bottom:1px solid var(--line);padding:16px 28px;position:sticky;top:0;z-index:20}
+header h1{margin:0;font-size:18px;letter-spacing:.04em}
+header p{margin:2px 0 0;font-size:12px;color:var(--sub)}
+.wrap{max-width:1240px;margin:0 auto;padding:24px 20px 80px}
+.steps{display:flex;gap:6px;margin-bottom:24px;flex-wrap:wrap}
+.steps div{flex:1;min-width:110px;padding:9px 12px;font-size:12.5px;border-radius:10px;background:var(--panel);border:1px solid var(--line);color:var(--sub);text-align:center}
+.steps div.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+.steps div.done{background:var(--accent-w);border-color:#bcd9d1;color:var(--accent)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:26px;box-shadow:var(--shadow)}
+h2.sec{font-size:17px;margin:0 0 4px}
+p.lead{margin:0 0 18px;font-size:13px;color:var(--sub)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.opt{border:1.5px solid var(--line);border-radius:12px;padding:13px;cursor:pointer;background:#fff;transition:.15s;text-align:left}
+.opt:hover{border-color:#b9b2ab;transform:translateY(-1px)}
+.opt.sel{border-color:var(--accent);background:var(--accent-w);box-shadow:0 0 0 3px rgba(31,111,92,.10)}
+.opt .ic{font-size:23px;line-height:1}
+.opt .nm{font-weight:700;font-size:14px;margin-top:6px}
+.opt .ds{font-size:11.5px;color:var(--sub);margin-top:3px;line-height:1.5}
+.sw{display:flex;height:16px;border-radius:4px;overflow:hidden;margin-top:8px}
+.sw i{flex:1}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px 20px}
+label.f{display:block;font-size:12.5px;font-weight:700;margin-bottom:4px}
+label.f span{font-weight:400;color:var(--sub);font-size:11px}
+input[type=number],select{width:100%;padding:8px 10px;border:1.5px solid var(--line);border-radius:9px;font-size:14px;font-family:inherit;background:#fff;color:var(--ink)}
+input:focus,select:focus{outline:none;border-color:var(--accent)}
+.range-row{display:flex;align-items:center;gap:10px}
+input[type=range]{flex:1;accent-color:var(--accent)}
+.range-row b{font-size:13px;min-width:60px;text-align:right}
+.chk{display:flex;align-items:center;gap:8px;font-size:13px;margin-top:24px}
+.chk input{width:16px;height:16px;accent-color:var(--accent)}
+.nav{display:flex;justify-content:space-between;margin-top:24px;gap:10px}
+button{font-family:inherit;cursor:pointer;border-radius:10px;font-size:14px;transition:.15s}
+.btn{padding:11px 26px;background:var(--accent);color:#fff;border:none;font-weight:700}
+.btn:hover{background:#18594a}
+.btn:disabled{background:#c9c4c0;cursor:not-allowed}
+.btn.ghost{background:#fff;color:var(--ink);border:1.5px solid var(--line);font-weight:400}
+.btn.ghost:hover{border-color:#b9b2ab;background:#faf9f8}
+.btn.sm{padding:7px 13px;font-size:12.5px}
+/* タブ */
+.tabs{display:flex;gap:0;border-bottom:2px solid var(--line);margin-bottom:20px}
+.tabs button{background:none;border:none;padding:10px 20px;font-size:14px;color:var(--sub);border-bottom:2.5px solid transparent;margin-bottom:-2px;border-radius:0}
+.tabs button.on{color:var(--accent);font-weight:700;border-bottom-color:var(--accent)}
+/* 図面読込 */
+.drop{border:2px dashed #c8c2ba;border-radius:12px;padding:36px;text-align:center;color:var(--sub);font-size:13.5px;cursor:pointer;background:#fbfaf9}
+.drop.over{border-color:var(--accent);background:var(--accent-w)}
+.calib-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:14px 0 8px;font-size:12.5px}
+.calib-bar .st{color:var(--sub);margin-left:auto}
+canvas.cv{width:100%;display:block;border:1px solid var(--line);border-radius:10px;background:#eceae6;touch-action:none;cursor:crosshair}
+.dist-in{display:none;gap:8px;align-items:center;margin-top:8px;font-size:13px}
+.dist-in input{width:110px}
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:10px;margin:0 0 16px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:11px 14px}
+.kpi .l{font-size:11px;color:var(--sub)}
+.kpi .v{font-size:22px;font-weight:700;letter-spacing:-.02em}
+.kpi .v small{font-size:11px;font-weight:400;color:var(--sub);margin-left:2px}
+.block{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-bottom:16px;box-shadow:var(--shadow)}
+.block h3{margin:0 0 12px;font-size:15px;display:flex;align-items:center;gap:8px}
+.block h3::before{content:'';width:4px;height:16px;background:var(--accent);border-radius:2px}
+/* エディタツールバー */
+.tb{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:12.5px}
+.tb select{width:auto;padding:7px 10px;font-size:13px}
+.tb .sep{width:1px;height:22px;background:var(--line);margin:0 3px}
+.tb label{display:flex;gap:5px;align-items:center;color:var(--sub)}
+#selbar{display:none;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:12.5px;
+  background:var(--accent-w);border:1px solid #bcd9d1;border-radius:10px;padding:7px 12px}
+#selbar b{color:var(--accent)}
+#selbar input{width:78px;padding:5px 8px;font-size:13px}
+.hint{font-size:11.5px;color:var(--sub);margin-top:8px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left}
+th{font-size:11.5px;color:var(--sub);font-weight:700;background:#faf9f8}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+.notes{list-style:none;padding:0;margin:0}
+.notes li{padding:9px 12px;border-radius:9px;font-size:13px;margin-bottom:7px;display:flex;gap:9px;align-items:flex-start}
+.notes li.ok{background:var(--accent-w);color:#155246}
+.notes li.warn{background:#fdf1e6;color:var(--warn)}
+.notes li.bad{background:#fdeceb;color:var(--bad)}
+.notes li b{flex-shrink:0}
+.mood{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:12px}
+.mat{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.mat .ch{height:66px}
+.mat .tx{padding:8px 11px}
+.mat .tx b{font-size:12.5px;display:block}
+.mat .tx span{font-size:11px;color:var(--sub);line-height:1.45;display:block;margin-top:2px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:880px){.two{grid-template-columns:1fr}}
+.hide{display:none}
+.okbtn{border-color:#bcd9d1!important;background:var(--accent-w)!important;color:var(--accent)!important;font-weight:700}
+@keyframes flashB{0%,100%{box-shadow:none}50%{box-shadow:0 0 0 4px rgba(194,87,31,.35);border-color:var(--warn)}}
+.flash{animation:flashB .7s 3}
+.p3d-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:12.5px}
+#palGrid{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px}
+.chip{display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 8px 5px;border:1.5px solid var(--line);border-radius:10px;background:#fff;font-size:10.5px;color:var(--sub);min-width:62px;cursor:pointer;transition:.12s}
+.chip:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-1px)}
+.chip canvas{width:44px;height:34px;pointer-events:none}
+.swr{display:inline-flex;gap:3px;align-items:center;margin:0 6px 0 2px}
+.swr i{width:19px;height:19px;border-radius:50%;display:inline-block;cursor:pointer;border:2px solid rgba(0,0,0,.12)}
+.swr i.on{border-color:var(--accent);box-shadow:0 0 0 2px rgba(31,111,92,.25)}
+@media print{header,.steps,.nav,.noprint,.tb,#selbar,.p3d-bar{display:none}body{background:#fff}.block,.card{break-inside:avoid;box-shadow:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1>店舗インテリア相談 <span style="font-size:11px;background:var(--accent);color:#fff;border-radius:5px;padding:2px 7px;vertical-align:2px">v2</span></h1>
+  <p>図面PDFを下絵に、レイアウトを自由に編集し、3Dパースで確認できます</p>
+</header>
+<div class="wrap">
+  <div class="steps" id="steps"></div>
+
+  <!-- STEP1 物件 -->
+  <section class="card" id="s2">
+    <h2 class="sec">1. 物件情報を入力してください</h2>
+    <div id="projLib" class="hide" style="margin:14px 0 20px;padding:14px 16px;background:#faf9f8;border:1px solid var(--line);border-radius:12px">
+      <label class="f" style="margin-bottom:8px">📁 保存済みの物件（自動保存されています）</label>
+      <div id="projList" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+    <div class="tabs">
+      <button id="tabNum" class="on">数値で入力</button>
+      <button id="tabPdf">図面（PDF/画像）を読み込む</button>
+    </div>
+
+    <div id="paneNum">
+      <div class="form">
+        <div><label class="f">間口 <span>m</span></label>
+          <div class="range-row"><input type="range" id="width" min="2.5" max="25" step="0.1" value="7.5"><b id="widthV"></b></div></div>
+        <div><label class="f">奥行 <span>m</span></label>
+          <div class="range-row"><input type="range" id="depth" min="3" max="25" step="0.1" value="16"><b id="depthV"></b></div></div>
+        <div><label class="f">主通路の幅 <span>mm</span></label>
+          <div class="range-row"><input type="range" id="aisle" min="600" max="1400" step="50" value="900"><b id="aisleV"></b></div></div>
+        <div><label class="f">厨房の位置</label>
+          <select id="kpos"><option value="back">奥（標準）</option><option value="left">左サイド</option><option value="right">右サイド</option></select></div>
+        <div><label class="chk"><input type="checkbox" id="toilet" checked>店内にトイレを設ける</label></div>
+      </div>
+      <p class="hint">この条件で初期レイアウトを自動配置します。あとの画面で自由に編集できます。</p>
+    </div>
+
+    <div id="panePdf" class="hide">
+      <div class="drop" id="drop">
+        📐 ここに平面図の <b>PDF</b> または <b>画像(PNG/JPG)</b> をドラッグ＆ドロップ<br>
+        <span style="font-size:12px">またはクリックしてファイルを選択</span>
+        <input type="file" id="fileIn" accept="application/pdf,image/*" hidden>
+      </div>
+      <div id="calibArea" class="hide">
+        <div class="calib-bar">
+          <button class="btn sm ghost" id="mScale">① 縮尺を合わせる（2点クリック）</button>
+          <button class="btn sm ghost" id="mRect" disabled>② 売場範囲を囲む（ドラッグ）</button>
+          <span class="st" id="calibSt">図面を読み込みました。まず「① 縮尺を合わせる」を押し、図面上の寸法が分かっている2点をクリックしてください。</span>
+        </div>
+        <canvas class="cv" id="ccv" height="520"></canvas>
+        <div class="dist-in" id="distIn">
+          この2点間の実際の距離：<input type="number" id="distMm" value="5800" step="10"> mm
+          <button class="btn sm" id="distOk">確定</button>
+        </div>
+        <p class="hint">操作：ドラッグで移動 / ホイールで拡大縮小。通り芯の寸法（例：5800）を使うと正確です。</p>
+        <label class="chk" style="margin-top:4px"><input type="checkbox" id="autoWall" checked>
+          壁・柱を図面のベクター線から自動抽出する（ベータ）<span style="color:var(--sub);font-weight:400">　※点線・寸法線は除外します。余分に拾ったものは編集画面でDeleteで削除してください</span></label>
+      </div>
+    </div>
+
+    <div class="form" style="margin-top:20px;padding-top:18px;border-top:1px solid var(--line)">
+      <div><label class="f">天井高 <span>m</span></label>
+        <div class="range-row"><input type="range" id="ceil" min="2.2" max="4.5" step="0.05" value="2.7"><b id="ceilV"></b></div></div>
+      <div><label class="f">想定客単価 <span>円</span></label><input type="number" id="price" min="300" step="100" value="3000"></div>
+      <div><label class="f">1日の想定回転数 <span>回</span></label><input type="number" id="turns" min="0.5" max="10" step="0.1" value="2"></div>
+    </div>
+    <div class="nav"><span id="pdfWarn" style="color:var(--bad);font-size:12.5px;font-weight:700;align-self:center"></span><button class="btn" id="n2">次へ</button></div>
+  </section>
+
+  <!-- STEP2 エディタ＋結果 -->
+  <section class="hide" id="s4">
+    <div class="kpis">
+      <div class="kpi"><div class="l">総席数</div><div class="v" id="kSeats">0<small>席</small></div></div>
+      <div class="kpi"><div class="l">1席あたり</div><div class="v" id="kPer">-<small>㎡</small></div></div>
+      <div class="kpi"><div class="l">厨房比率</div><div class="v" id="kKit">-<small>%</small></div></div>
+      <div class="kpi"><div class="l">ダーツレーン</div><div class="v" id="kDart">0<small>面</small></div></div>
+      <div class="kpi"><div class="l">月商の目安</div><div class="v" id="kMon">-<small>万円</small></div></div>
+    </div>
+
+    <div class="block">
+      <h3>レイアウト編集</h3>
+      <div id="palGrid" class="noprint"></div>
+      <div class="tb noprint">
+        <input id="projName" style="width:150px;padding:6px 9px;font-size:13px" title="物件名（保存名になります）">
+        <span class="sep"></span>
+        <button class="btn sm ghost" id="undoB" title="Ctrl+Z">↩ 元に戻す</button>
+        <button class="btn sm ghost" id="fitB">⊡ 全体表示</button>
+        <span class="sep"></span>
+        <label id="bgCtl" class="hide"><input type="checkbox" id="bgV" checked>下絵
+          <input type="range" id="bgOp" min="10" max="100" value="55" style="width:80px"></label>
+        <span class="sep"></span>
+        <button class="btn sm ghost" id="saveB">💾 ファイル書出</button>
+        <button class="btn sm ghost" id="loadB">📂 ファイル読込</button>
+        <input type="file" id="projIn" accept=".json" hidden>
+        <span id="saveSt" style="color:var(--sub);font-size:11.5px"></span>
+      </div>
+      <div id="selbar">
+        <b id="selName"></b>
+        <span id="selFix"></span>
+        <span id="selSize" class="hide">幅<input type="number" id="selW" step="50">× 奥行<input type="number" id="selH" step="50">mm</span>
+        <span id="finRow" class="hide">｜ 木部<span class="swr" id="finWood"></span>張地<span class="swr" id="finFab"></span><button class="btn sm ghost" id="legB"></button></span>
+        <button class="btn sm ghost" id="rotB">⟳ 回転(R)</button>
+        <button class="btn sm ghost" id="dupB">⧉ 複製</button>
+        <button class="btn sm ghost" id="delB" style="color:var(--bad)">✕ 削除</button>
+      </div>
+      <canvas class="cv" id="ed" height="580" style="cursor:default"></canvas>
+      <p class="hint">ドラッグで移動（何もない所は画面移動）／ホイールで拡大縮小／R:回転 Delete:削除 矢印キー:微調整／間仕切り・カウンター等は選択時に出る<b style="color:var(--accent)">●ハンドル</b>を引っ張って長さ変更</p>
+    </div>
+
+    <div class="block">
+      <h3>3Dパース</h3>
+      <div class="p3d-bar noprint">
+        <button class="btn sm ghost" data-view="bird">俯瞰</button>
+        <button class="btn sm ghost" data-view="door">入口から</button>
+        <button class="btn sm ghost" data-view="counter">カウンター前</button>
+        <span class="sep"></span>
+        <label>テイスト <select id="styleSel"></select></label>
+        <span style="color:var(--sub);margin-left:auto">ドラッグで視点回転／ホイールで距離</span>
+      </div>
+      <canvas class="cv" id="p3d" height="540" style="background:#1c1b1e;cursor:grab"></canvas>
+    </div>
+
+    <div class="block"><h3>プランの診断</h3><ul class="notes" id="diagList"></ul>
+      <p style="font-size:12.5px;color:var(--sub);margin:12px 0 0;padding-top:10px;border-top:1px solid var(--line)" id="genreTip"></p></div>
+
+    <div class="two">
+      <div class="block"><h3>什器リスト</h3><div id="furnTable"></div></div>
+      <div class="block"><h3>売上シミュレーション</h3><div id="salesTable"></div></div>
+    </div>
+
+    <div class="block"><h3 id="moodTitle">素材ボード</h3><div class="mood" id="moodBox"></div></div>
+    <div class="two">
+      <div class="block"><h3>配色パレット</h3><div id="palTable"></div></div>
+      <div class="block"><h3>照明計画</h3><div id="lightTable"></div></div>
+    </div>
+
+    <div class="nav noprint">
+      <button class="btn ghost" data-back="1">物件条件に戻る</button>
+      <button class="btn" onclick="window.print()">提案書を印刷 / PDF保存</button>
+    </div>
+  </section>
+</div>
+
+<script>
+'use strict';
+/* ================= ユーティリティ ================= */
+const $=id=>document.getElementById(id);
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+function hex2rgb(h){h=h.replace('#','');return[parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]}
+function rgb2hex(r,g,b){return'#'+[r,g,b].map(v=>clamp(Math.round(v),0,255).toString(16).padStart(2,'0')).join('')}
+function shade(h,f){const[r,g,b]=hex2rgb(h);return rgb2hex(r*f,g*f,b*f)}
+function wheelF(e,k){ // ホイール量に比例した滑らかなズーム係数
+  let dy=e.deltaY;
+  if(e.deltaMode===1)dy*=33;else if(e.deltaMode===2)dy*=120;
+  return Math.exp(-clamp(dy,-300,300)*(k||0.002));
+}
+function mixc(h1,h2,t){const a=hex2rgb(h1),b=hex2rgb(h2);return rgb2hex(a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t)}
+
+/* ================= マスタ ================= */
+const GENRES=[
+ {id:'darts',n:'ダーツバー',ic:'🎯',kitchenRatio:.15,counterRatio:.5,mix:{t2:.6,t4:.4},turns:1.8,price:3000,seatArea:1.8,
+  tip:'ソフトダーツのスローラインはボード面から2,440mm。ライン後方に最低600mmの通行余地を確保し、レーン脇の席は投げ手の肘と干渉しない配置にします。マシンは電源と通信(LAN/Wi-Fi)が必要です。'},
+ {id:'bar',n:'バー',ic:'🍸',kitchenRatio:.18,counterRatio:.6,mix:{t2:.7,t4:.3},turns:1.5,price:3000,seatArea:1.4,
+  tip:'照度を落とすぶん、手元とボトル棚の明かりで見せ場をつくります。'},
+ {id:'izakaya',n:'居酒屋',ic:'🍶',kitchenRatio:.28,counterRatio:.25,mix:{t2:.3,t4:.7},turns:1.8,price:3500,seatArea:1.3,
+  tip:'4名卓を基本に、連結して6〜8名の宴会に対応できる可動テーブルが有効です。'},
+ {id:'cafe',n:'カフェ',ic:'☕',kitchenRatio:.22,counterRatio:.22,mix:{t2:.65,t4:.35},turns:3,price:1100,seatArea:1.5,
+  tip:'滞在が長く回転が読みにくい業態。席間のゆとりと客席の電源計画が満足度を左右します。'},
+ {id:'ramen',n:'ラーメン',ic:'🍜',kitchenRatio:.34,counterRatio:.75,mix:{t2:.5,t4:.5},turns:5,price:1000,seatArea:1.0,
+  tip:'カウンター主体で回転を最大化。券売機と待ち客の立ち位置を入口側に確保します。'},
+ {id:'teishoku',n:'定食・食堂',ic:'🍚',kitchenRatio:.28,counterRatio:.35,mix:{t2:.45,t4:.55},turns:4,price:950,seatArea:1.2,
+  tip:'昼のピークに全席が同時に動きます。配膳動線を最短にすることが最優先。'},
+ {id:'bistro',n:'ビストロ・洋食',ic:'🍷',kitchenRatio:.3,counterRatio:.15,mix:{t2:.55,t4:.45},turns:2.5,price:3200,seatArea:1.7,
+  tip:'2名卓を主体に、繁忙時は連結して4名対応。ゆったりした席間が単価を支えます。'},
+ {id:'yakiniku',n:'焼肉',ic:'🥩',kitchenRatio:.25,counterRatio:.05,mix:{t2:.25,t4:.75},turns:2.2,price:4500,seatArea:2.0,
+  tip:'各卓のロースター排気ダクトが必須。設備工事が主役になる業態です。'},
+ {id:'sushi',n:'寿司・和食',ic:'🍣',kitchenRatio:.3,counterRatio:.55,mix:{t2:.4,t4:.6},turns:2.5,price:5000,seatArea:1.7,
+  tip:'つけ場カウンターが主役。背面の見せ方に投資する価値があります。'}
+];
+const STYLES=[
+ {id:'industrial',n:'インダストリアル',ic:'🔩',ds:'黒鉄・モルタル・現し天井。バー/ダーツバーの王道。',
+  c:{floor:'#6e6a64',wall:'#54524f',ceil:'#3a3937',wood:'#7a5c3f',accent:'#c96f2c',fabric:'#403d3a',metal:'#2f2e2c'},
+  light:{k:'2400K 電球色（低め）',fx:'黒スチールの裸電球ペンダント＋スポット',lx:'客席 150lx / 手元 400lx'},
+  mats:[['床','モルタル金鏝仕上げ','継ぎ目がなく清掃性が高い。ひび割れは味と割り切る。'],
+        ['壁','コンクリート打ち放し調＋黒鉄','部分的にレンガタイルで温度感を足す。'],
+        ['天井','躯体現し（配管を見せる）','天井高2.8m以上でないと圧迫感が出る。'],
+        ['椅子','黒スチール脚＋木座面','スタッキング可で清掃が楽。']],
+  fit:['darts','bar','izakaya','bistro']},
+ {id:'mono',n:'モノトーンモダン',ic:'⬛',ds:'黒・白・グレー。照明演出とネオンが映える。',
+  c:{floor:'#3f3f42',wall:'#5b5b5e',ceil:'#2e2e30',wood:'#55524e',accent:'#7c6cf0',fabric:'#2b2b2d',metal:'#7c7c7e'},
+  light:{k:'3000K＋カラー演出照明',fx:'黒筒ダウンライト＋LEDライン照明',lx:'客席 150lx / 卓上 400lx'},
+  mats:[['床','濃グレータイル','高級感と清掃性を両立。目地は濃色で。'],
+        ['壁','黒マット塗装＋LEDライン','ダーツエリアの照明演出と好相性。'],
+        ['天板','メラミン（黒）','熱・傷に強く業務利用に最適。'],
+        ['椅子','黒スチール＋レザー座面','拭き取り清掃が一瞬。']],
+  fit:['darts','bar','bistro','yakiniku','sushi']},
+ {id:'natural',n:'ナチュラル木質',ic:'🌿',ds:'明るい無垢材とリネン。昼営業・カフェ寄りに。',
+  c:{floor:'#c9a87c',wall:'#efe7db',ceil:'#f6f1e8',wood:'#b08655',accent:'#6f8f6a',fabric:'#d8cbb4',metal:'#9a8f7f'},
+  light:{k:'2700K 電球色',fx:'木シェードのペンダント＋間接照明',lx:'客席 250lx / 手元 500lx'},
+  mats:[['床','オーク調フロアタイル','傷が目立ちにくく水濡れにも強い。'],
+        ['壁','漆喰調塗り壁','マットな質感で照明の陰影が出る。'],
+        ['天板','タモ集成材＋ウレタン塗装','熱い皿でも白化しにくい仕様に。'],
+        ['椅子','木脚＋ファブリック座','座面は張替え可能なものを。']],
+  fit:['cafe','bistro','teishoku']},
+ {id:'wamodern',n:'和モダン',ic:'🎎',ds:'墨色と生成り、格子。落ち着いた単価帯に。',
+  c:{floor:'#4a423a',wall:'#e6ded0',ceil:'#d9cfbe',wood:'#6b5340',accent:'#7d2f2a',fabric:'#3c3a37',metal:'#8a7d63'},
+  light:{k:'2700K 電球色',fx:'和紙シェード＋足元の行灯照明',lx:'客席 180lx / 手元 450lx'},
+  mats:[['床','濃色フローリング','汚れが目立ちにくく格式が出る。'],
+        ['壁','聚楽調塗り壁＋木格子','格子は間仕切りにも使える。'],
+        ['カウンター','一枚板（欅・栃）','店の顔になる投資箇所。'],
+        ['椅子','座面低めの木製チェア','和の落ち着きは座面高でも演出。']],
+  fit:['sushi','izakaya','teishoku']},
+ {id:'retro',n:'レトロ喫茶・パブ',ic:'🥃',ds:'えんじのソファ、真鍮、木羽目板。英国パブ風にも。',
+  c:{floor:'#6d4b35',wall:'#8a6a4c',ceil:'#4e3a2a',wood:'#5c3b26',accent:'#8f2f34',fabric:'#7d2b30',metal:'#b08d4f'},
+  light:{k:'2400K 電球色',fx:'乳白ガラスブラケット＋真鍮ペンダント',lx:'客席 160lx / 手元 400lx'},
+  mats:[['床','モザイクタイル／市松柄','入口まわりだけでも効果大。'],
+        ['壁','木羽目板＋腰壁','年数が経つほど雰囲気が出る。'],
+        ['ソファ','えんじ色の合皮ベンチ','クリーニングしやすい合皮が実務的。'],
+        ['金物','真鍮（無垢）','経年で色が育つ。']],
+  fit:['darts','bar','cafe','izakaya']},
+ {id:'nordic',n:'北欧',ic:'❄️',ds:'白木とやわらかい配色。明るい物件に。',
+  c:{floor:'#ddc9a8',wall:'#f7f5f1',ceil:'#ffffff',wood:'#d8bd94',accent:'#5b7f96',fabric:'#c5d3d6',metal:'#b8b2a8'},
+  light:{k:'3000K 温白色',fx:'白系ドームペンダント＋ベース照明',lx:'客席 350lx / 手元 500lx'},
+  mats:[['床','ホワイトオーク調フロア','明るく空間が広く見える。'],
+        ['壁','白系クロス／塗装','汚れやすいので腰壁を検討。'],
+        ['天板','ホワイトアッシュ突板','角は面取りして欠け防止。'],
+        ['椅子','明るい木脚＋成形合板','軽くレイアウト変更に強い。']],
+  fit:['cafe','bistro']}
+];
+/* 什器カタログ（実店舗図面の寸法を反映） */
+const CAT={
+ t4:{n:'4名テーブル',s:'4名卓',w:1200,h:750,seats:4},
+ t6:{n:'6名テーブル',s:'6名卓',w:1800,h:750,seats:6},
+ t2:{n:'2名テーブル',s:'2名卓',w:700,h:700,seats:2},
+ high:{n:'ハイテーブル 500×600（椅子は500側）',s:'ハイ卓',w:500,h:600,seats:2},
+ round:{n:'丸テーブル 650φ',s:'丸卓',w:650,h:650,seats:3},
+ counter:{n:'カウンター',s:'カウンター',w:2400,h:500,rez:1},
+ sofa:{n:'ベンチソファ',s:'ソファ',w:1600,h:550,rez:1},
+ dart:{n:'ダーツレーン（マシン＋2440）',s:'ダーツ',w:700,h:3150},
+ kitchen:{n:'厨房ゾーン',s:'厨房',w:3000,h:2200,rez:1,zone:1},
+ storage:{n:'倉庫・バックヤード',s:'倉庫',w:1800,h:1500,rez:1,zone:1},
+ wc:{n:'トイレ',s:'トイレ',w:1700,h:1600,rez:1},
+ reg:{n:'レジ',s:'レジ',w:1200,h:600},
+ door:{n:'入口（幅は自由に変更可・造作壁に重ねて配置）',s:'入口',w:900,h:200,rez:1},
+ door2:{n:'小ドア（トイレ・バックヤード用 W650）',s:'小ドア',w:650,h:150,rez:1},
+ wall:{n:'間仕切り（腰上・高さ1.5m）',s:'間仕切り',w:1500,h:100,rez:1},
+ swall:{n:'造作壁（天井まで）',s:'造作壁',w:1800,h:100,rez:1},
+ pillar:{n:'柱',s:'柱',w:600,h:600,rez:1},
+ beam:{n:'梁（天井下がり）',s:'梁',w:3000,h:300,rez:1}
+};
+function seatsOf(it){
+  const t=it.type;
+  if(t==='counter')return Math.floor(Math.max(it.w,it.h)/600);
+  if(t==='sofa')return Math.floor(Math.max(it.w,it.h)/550);
+  return CAT[t].seats||0;
+}
+/* 仕上げ（家具ごとに上書きできる） */
+const FIN={
+ woods:[{n:'ライトオーク',v:'#c9a87c'},{n:'ナチュラル',v:'#b08655'},{n:'ウォールナット',v:'#6b4a30'},
+        {n:'ダークブラウン',v:'#4a3527'},{n:'ブラック',v:'#33302d'},{n:'ホワイト',v:'#e5e0d8'}],
+ fabrics:[{n:'チャコール',v:'#3a3835'},{n:'キャメル',v:'#b98a52'},{n:'ワインレッド',v:'#7d2b30'},
+          {n:'モスグリーン',v:'#5d6e52'},{n:'ネイビー',v:'#31435c'},{n:'アイボリー',v:'#d8cbb4'}]
+};
+const WOOD_T=['t4','t6','t2','high','round','counter','reg','wall'];
+const FAB_T=['t4','t6','t2','high','round','counter','sofa'];
+const LEG_T=['t4','t6','t2','high','round'];
+const woodOf=it=>(it.fin&&it.fin.wood)||(S.style?S.style.c.wood:'#b08655');
+const fabricOf=it=>(it.fin&&it.fin.fab)||(S.style?S.style.c.fabric:'#8a8580');
+const legsOf=it=>(it.fin&&it.fin.legs)||((S.style&&(S.style.id==='industrial'||S.style.id==='mono'))?'steel':'wood');
+
+/* ================= 状態 ================= */
+const S={
+  step:1,genre:null,style:null,
+  room:{W:7500,D:16000,ceil:2.7,aisle:900},
+  biz:{price:3000,turns:2},
+  bg:null,           // {img,mmPerPx,origin:{x,y},visible,opacity}
+  items:[],sel:null,undo:[],idc:1
+};
+
+/* ================= ウィザード ================= */
+S.genre=GENRES.find(g=>g.id==='darts');       // 業態はダーツバー固定
+S.style=STYLES.find(s=>s.id==='industrial');  // テイスト初期値（3Dパースのバーで変更可）
+function renderSteps(){
+  const names=['物件・図面','プラン編集'];
+  $('steps').innerHTML=names.map((n,i)=>
+    `<div class="${S.step===i+1?'on':(S.step>i+1?'done':'')}">${i+1}. ${n}</div>`).join('');
+}
+const SECS=['s2','s4'];
+function goto(n){
+  S.step=n;SECS.forEach((id,i)=>$(id).classList.toggle('hide',i+1!==n));
+  renderSteps();window.scrollTo({top:0,behavior:'smooth'});
+  if(n===1)renderProjLib();
+  if(n===2){sizeCanvases();fitView();renderEd();render3D();updateAll();}
+}
+$('price').value=S.genre.price;$('turns').value=S.genre.turns;
+[['width','m'],['depth','m'],['ceil','m'],['aisle','mm']].forEach(([id,u])=>{
+  const el=$(id),out=$(id+'V'),f=()=>out.textContent=el.value+u;
+  el.addEventListener('input',f);f();
+});
+let tab='num';
+$('tabNum').onclick=()=>setTab('num');
+$('tabPdf').onclick=()=>setTab('pdf');
+function setTab(t){tab=t;
+  $('tabNum').classList.toggle('on',t==='num');$('tabPdf').classList.toggle('on',t==='pdf');
+  $('paneNum').classList.toggle('hide',t!=='num');$('panePdf').classList.toggle('hide',t!=='pdf');
+}
+$('n2').onclick=()=>{
+  S.room.ceil=+$('ceil').value;S.biz.price=+$('price').value;S.biz.turns=+$('turns').value;
+  if(tab==='pdf'){
+    if(!calib.done){
+      let msg;
+      if(!calib.img)msg='図面ファイルを読み込んでください（数値入力に切り替えることもできます）';
+      else if(!calib.mmPerPx){msg='「① 縮尺を合わせる」が未完了です。2点クリック→距離入力→確定まで進めてください';
+        $('mScale').classList.add('flash');setTimeout(()=>$('mScale').classList.remove('flash'),2200)}
+      else{msg='あと「② 売場範囲を囲む」が必要です。ボタンを押して、図面上の売場をドラッグで囲ってください';
+        $('mRect').classList.add('flash');setTimeout(()=>$('mRect').classList.remove('flash'),2200)}
+      $('pdfWarn').textContent='⚠ '+msg;
+      return;
+    }
+    applyCalib();
+  }else{
+    S.room.W=+$('width').value*1000;S.room.D=+$('depth').value*1000;S.room.aisle=+$('aisle').value;
+    S.bg=null;
+  }
+  if(!S.bg&&S.items.length===0)seedAuto();
+  if(S.bg&&!S.items.some(i=>i.type==='door'))S.items.push(mk('door',S.room.W/2,S.room.D-150));
+  if(!S.projId){
+    S.projId='p'+Date.now().toString(36);
+    const d=new Date();
+    S.projName=`物件 ${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  }
+  $('projName').value=S.projName;
+  buildStyleUI();goto(2);
+};
+document.querySelectorAll('[data-back]').forEach(b=>b.onclick=()=>goto(+b.dataset.back));
+
+/* ================= PDF/画像 読込＋キャリブレーション ================= */
+const calib={img:null,mmPerPx:null,rect:null,done:false,mode:null,p1:null,p2:null,view:{x:0,y:0,z:.3},drag:null};
+$('drop').onclick=()=>$('fileIn').click();
+$('drop').ondragover=e=>{e.preventDefault();$('drop').classList.add('over')};
+$('drop').ondragleave=()=>$('drop').classList.remove('over');
+$('drop').ondrop=e=>{e.preventDefault();$('drop').classList.remove('over');if(e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0])};
+$('fileIn').onchange=e=>{if(e.target.files[0])loadFile(e.target.files[0])};
+
+async function loadFile(f){
+  try{
+    let cv;
+    if(f.type==='application/pdf'||/\.pdf$/i.test(f.name)){
+      if(typeof pdfjsLib==='undefined'){alert('PDF読込ライブラリを取得できませんでした（オフラインの可能性）。図面のスクリーンショット画像（PNG/JPG）でも取り込めます。');return}
+      const data=await f.arrayBuffer();
+      const pdf=await pdfjsLib.getDocument({data}).promise;
+      const page=await pdf.getPage(1);
+      const vp=page.getViewport({scale:2});
+      cv=document.createElement('canvas');cv.width=vp.width;cv.height=vp.height;
+      await page.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
+      calib.vec=null;
+      try{calib.vec=await capturePdfVectors(page,vp)}catch(err){calib.vec=null}
+    }else{
+      const img=new Image();
+      await new Promise((ok,ng)=>{img.onload=ok;img.onerror=ng;img.src=URL.createObjectURL(f)});
+      cv=document.createElement('canvas');cv.width=img.naturalWidth;cv.height=img.naturalHeight;
+      cv.getContext('2d').drawImage(img,0,0);
+    }
+    calib.img=cv;calib.mmPerPx=null;calib.rect=null;calib.done=false;calib.mode=null;calib.p1=calib.p2=null;
+    $('calibArea').classList.remove('hide');$('mRect').disabled=true;$('distIn').style.display='none';
+    $('mScale').textContent='① 縮尺を合わせる（2点クリック）';$('mScale').classList.remove('okbtn');
+    $('mRect').textContent='② 売場範囲を囲む（ドラッグ）';$('mRect').classList.remove('okbtn');
+    $('pdfWarn').textContent='';
+    sizeCalib();
+    const c=$('ccv');
+    calib.view.z=Math.min(c.width/devicePixelRatio/cv.width,c.height/devicePixelRatio/cv.height)*.96;
+    calib.view.x=-(c.width/devicePixelRatio/calib.view.z-cv.width)/2;
+    calib.view.y=-(c.height/devicePixelRatio/calib.view.z-cv.height)/2;
+    st('図面を読み込みました。「① 縮尺を合わせる」を押してください。');
+    renderCalib();
+  }catch(err){alert('読み込みに失敗しました: '+err.message)}
+}
+function st(t){$('calibSt').textContent=t}
+function sizeCalib(){
+  const c=$('ccv'),r=window.devicePixelRatio||1,w=c.parentElement.clientWidth-2;
+  c.style.width=w+'px';c.width=w*r;c.height=520*r;
+  c.getContext('2d').setTransform(r,0,0,r,0,0);
+}
+$('mScale').onclick=()=>{calib.mode='scale';calib.p1=calib.p2=null;$('distIn').style.display='none';
+  st('寸法が分かっている2点を順にクリックしてください（例：通り芯の端と端）。');renderCalib()};
+$('mRect').onclick=()=>{calib.mode='rect';
+  st('客席・厨房を含む「売場の外形」をドラッグで囲ってください。');renderCalib()};
+$('distOk').onclick=()=>{
+  const mm=+$('distMm').value;
+  if(!(mm>0)||!calib.p1||!calib.p2)return;
+  const px=Math.hypot(calib.p2.x-calib.p1.x,calib.p2.y-calib.p1.y);
+  calib.mmPerPx=mm/px;calib.mode=null;$('distIn').style.display='none';$('mRect').disabled=false;
+  $('mScale').textContent='✓ 縮尺設定済み';$('mScale').classList.add('okbtn');
+  $('mRect').classList.add('flash');setTimeout(()=>$('mRect').classList.remove('flash'),2200);
+  st(`縮尺を設定しました（1px = ${calib.mmPerPx.toFixed(1)}mm）。次に「② 売場範囲を囲む」を押してください。`);
+  renderCalib();
+};
+$('distMm').addEventListener('keydown',e=>{if(e.key==='Enter')$('distOk').click()});
+function cw2s(p){const v=calib.view;return{x:(p.x-v.x)*v.z,y:(p.y-v.y)*v.z}}
+function cs2w(p){const v=calib.view;return{x:p.x/v.z+v.x,y:p.y/v.z+v.y}}
+function renderCalib(){
+  const c=$('ccv');if(!c.width)return;
+  const ctx=c.getContext('2d'),r=window.devicePixelRatio||1;
+  const cwpx=c.width/r,chpx=c.height/r;
+  ctx.setTransform(r,0,0,r,0,0);
+  ctx.fillStyle='#eceae6';ctx.fillRect(0,0,cwpx,chpx);
+  if(!calib.img)return;
+  const v=calib.view;
+  ctx.imageSmoothingEnabled=true;
+  ctx.drawImage(calib.img,(0-v.x)*v.z,(0-v.y)*v.z,calib.img.width*v.z,calib.img.height*v.z);
+  // 計測線
+  if(calib.p1){
+    const a=cw2s(calib.p1);
+    ctx.fillStyle='#c2571f';ctx.beginPath();ctx.arc(a.x,a.y,5,0,7);ctx.fill();
+    if(calib.p2){
+      const b=cw2s(calib.p2);
+      ctx.strokeStyle='#c2571f';ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+      ctx.beginPath();ctx.arc(b.x,b.y,5,0,7);ctx.fill();
+    }
+  }
+  // 売場矩形
+  if(calib.rect){
+    const p=cw2s({x:calib.rect.x,y:calib.rect.y});
+    ctx.strokeStyle='#1f6f5c';ctx.lineWidth=2.5;ctx.setLineDash([8,5]);
+    ctx.strokeRect(p.x,p.y,calib.rect.w*v.z,calib.rect.h*v.z);ctx.setLineDash([]);
+    ctx.fillStyle='rgba(31,111,92,.09)';ctx.fillRect(p.x,p.y,calib.rect.w*v.z,calib.rect.h*v.z);
+    if(calib.mmPerPx){
+      ctx.fillStyle='#1f6f5c';ctx.font='700 13px sans-serif';
+      ctx.fillText(`${(calib.rect.w*calib.mmPerPx/1000).toFixed(2)}m × ${(calib.rect.h*calib.mmPerPx/1000).toFixed(2)}m`,p.x+6,p.y+18);
+    }
+  }
+}
+{
+  const c=$('ccv');
+  let moved=false;
+  c.addEventListener('pointerdown',e=>{
+    c.setPointerCapture(e.pointerId);moved=false;
+    const r=c.getBoundingClientRect(),sp={x:e.clientX-r.left,y:e.clientY-r.top};
+    if(calib.mode==='rect'&&calib.mmPerPx){
+      const w=cs2w(sp);calib.rect={x:w.x,y:w.y,w:0,h:0};calib.drag={t:'rect',sx:w.x,sy:w.y};
+    }else calib.drag={t:'pan',sx:sp.x,sy:sp.y,vx:calib.view.x,vy:calib.view.y};
+  });
+  c.addEventListener('pointermove',e=>{
+    if(!calib.drag)return;
+    const r=c.getBoundingClientRect(),sp={x:e.clientX-r.left,y:e.clientY-r.top};
+    if(calib.drag.t==='pan'){
+      const dx=sp.x-calib.drag.sx,dy=sp.y-calib.drag.sy;
+      if(Math.hypot(dx,dy)>4)moved=true;
+      calib.view.x=calib.drag.vx-dx/calib.view.z;calib.view.y=calib.drag.vy-dy/calib.view.z;
+    }else if(calib.drag.t==='rect'){
+      moved=true;const w=cs2w(sp);
+      calib.rect={x:Math.min(calib.drag.sx,w.x),y:Math.min(calib.drag.sy,w.y),
+                  w:Math.abs(w.x-calib.drag.sx),h:Math.abs(w.y-calib.drag.sy)};
+    }
+    renderCalib();
+  });
+  c.addEventListener('pointerup',e=>{
+    const wasRect=calib.drag&&calib.drag.t==='rect';
+    calib.drag=null;
+    const r=c.getBoundingClientRect(),sp={x:e.clientX-r.left,y:e.clientY-r.top};
+    if(calib.mode==='scale'&&!moved){
+      const w=cs2w(sp);
+      if(!calib.p1)calib.p1=w;
+      else if(!calib.p2){calib.p2=w;$('distIn').style.display='flex';st('2点間の実距離をmmで入力して「確定」を押してください。')}
+      renderCalib();
+    }
+    if(wasRect&&calib.rect&&calib.rect.w>20&&calib.rect.h>20){
+      calib.done=true;calib.mode=null;
+      $('mRect').textContent='✓ 売場範囲設定済み';$('mRect').classList.add('okbtn');
+      $('pdfWarn').textContent='';
+      st(`売場範囲を設定しました：${(calib.rect.w*calib.mmPerPx/1000).toFixed(1)}m × ${(calib.rect.h*calib.mmPerPx/1000).toFixed(1)}m。「次へ」で進めます。`);
+    }
+    renderCalib();
+  });
+  c.addEventListener('wheel',e=>{
+    e.preventDefault();
+    const r=c.getBoundingClientRect(),sp={x:e.clientX-r.left,y:e.clientY-r.top};
+    const w=cs2w(sp);
+    calib.view.z=clamp(calib.view.z*wheelF(e),.05,6);
+    calib.view.x=w.x-sp.x/calib.view.z;calib.view.y=w.y-sp.y/calib.view.z;
+    renderCalib();
+  },{passive:false});
+}
+/* --- PDFベクター解析：壁・柱の自動抽出（ベータ） --- */
+async function capturePdfVectors(page,vp){
+  const OPS=pdfjsLib.OPS;
+  const ol=await page.getOperatorList();
+  const mul=(m,n)=>[m[0]*n[0]+m[2]*n[1],m[1]*n[0]+m[3]*n[1],m[0]*n[2]+m[2]*n[3],m[1]*n[2]+m[3]*n[3],m[0]*n[4]+m[2]*n[5]+m[4],m[1]*n[4]+m[3]*n[5]+m[5]];
+  const app=(m,x,y)=>({x:m[0]*x+m[2]*y+m[4],y:m[1]*x+m[3]*y+m[5]});
+  const lum=a=>(a&&a.length>=3)?(0.299*a[0]+0.587*a[1]+0.114*a[2])/255:0;
+  let ctm=vp.transform.slice(),stack=[],lw=1,dash=false,fillL=0,strokeL=0;
+  let path={segs:[],rects:[]};
+  const segs=[],rects=[],fills=[];
+  const flushStroke=()=>{
+    if(!dash){
+      const k=Math.sqrt(Math.abs(ctm[0]*ctm[3]-ctm[1]*ctm[2]))||1;
+      path.segs.forEach(s=>segs.push({...s,w:lw*k,l:strokeL}));
+      path.rects.forEach(r=>{
+        const rw=r.x1-r.x0,rh=r.y1-r.y0;
+        if(rh<=rw)segs.push({x1:r.x0,y1:(r.y0+r.y1)/2,x2:r.x1,y2:(r.y0+r.y1)/2,w:rh,l:strokeL});
+        else segs.push({x1:(r.x0+r.x1)/2,y1:r.y0,x2:(r.x0+r.x1)/2,y2:r.y1,w:rw,l:strokeL});
+      });
+    }
+    path={segs:[],rects:[]};
+  };
+  const flushFill=()=>{
+    path.rects.forEach(r=>rects.push({...r,l:fillL}));
+    // 塗りパスは輪郭エッジをパス単位で保持（抽出時に「平行2辺の薄い帯」だけ壁化する）
+    if(path.segs.length&&path.segs.length<=400)fills.push({edges:path.segs,l:fillL});
+    path={segs:[],rects:[]};
+  };
+  for(let i=0;i<ol.fnArray.length;i++){
+    const fn=ol.fnArray[i],a=ol.argsArray[i];
+    if(fn===OPS.save)stack.push({ctm:ctm.slice(),lw,dash});
+    else if(fn===OPS.restore){const s=stack.pop();if(s){ctm=s.ctm;lw=s.lw;dash=s.dash}}
+    else if(fn===OPS.transform)ctm=mul(ctm,a);
+    else if(fn===OPS.setLineWidth)lw=a[0];
+    else if(fn===OPS.setDash)dash=!!(a[0]&&a[0].length);
+    else if(fn===OPS.setStrokeRGBColor)strokeL=lum(a);
+    else if(fn===OPS.setFillRGBColor)fillL=lum(a);
+    else if(fn===OPS.constructPath){
+      const po=a[0],pa=a[1];let ci=0,cur=null,start=null;
+      for(const op of po){
+        if(op===OPS.moveTo){cur=app(ctm,pa[ci],pa[ci+1]);start=cur;ci+=2}
+        else if(op===OPS.lineTo){const p=app(ctm,pa[ci],pa[ci+1]);
+          if(cur)path.segs.push({x1:cur.x,y1:cur.y,x2:p.x,y2:p.y});cur=p;ci+=2}
+        else if(op===OPS.curveTo){ci+=6;cur=app(ctm,pa[ci-2],pa[ci-1])}
+        else if(op===OPS.curveTo2||op===OPS.curveTo3){ci+=4;cur=app(ctm,pa[ci-2],pa[ci-1])}
+        else if(op===OPS.closePath){if(cur&&start)path.segs.push({x1:cur.x,y1:cur.y,x2:start.x,y2:start.y})}
+        else if(op===OPS.rectangle){
+          const p1=app(ctm,pa[ci],pa[ci+1]),p2=app(ctm,pa[ci]+pa[ci+2],pa[ci+1]+pa[ci+3]);ci+=4;
+          path.rects.push({x0:Math.min(p1.x,p2.x),y0:Math.min(p1.y,p2.y),x1:Math.max(p1.x,p2.x),y1:Math.max(p1.y,p2.y)});
+        }
+      }
+    }
+    else if(fn===OPS.stroke||fn===OPS.closeStroke)flushStroke();
+    else if(fn===OPS.fill||fn===OPS.eoFill)flushFill();
+    else if(fn===OPS.fillStroke||fn===OPS.eoFillStroke||fn===OPS.closeFillStroke||fn===OPS.closeEOFillStroke)flushFill();
+    if(segs.length>30000)break;
+  }
+  return{segs,rects,fills};
+}
+function extractStructure(){
+  if(!calib.vec)return[];
+  const s=calib.mmPerPx,rx=calib.rect.x,ry=calib.rect.y;
+  const W=calib.rect.w*s,D=calib.rect.h*s,M=150;
+  const cands=[];
+  calib.vec.rects.forEach(r=>{
+    if(r.l>0.88)return; // 白系の塗りは無視
+    const x0=(r.x0-rx)*s,y0=(r.y0-ry)*s,x1=(r.x1-rx)*s,y1=(r.y1-ry)*s;
+    if(x1<M||y1<M||x0>W-M||y0>D-M)return;
+    const w=x1-x0,h=y1-y0,sh=Math.min(w,h),lg=Math.max(w,h);
+    if(sh>=40&&sh<=450&&lg>=400)
+      cands.push({kind:'wall',cx:(x0+x1)/2,cy:(y0+y1)/2,len:lg,th:sh,horiz:w>=h});
+    else if(sh>=150&&sh<=1200&&lg/sh<=2.2&&lg<=1500)
+      cands.push({kind:'pillar',cx:(x0+x1)/2,cy:(y0+y1)/2,w,h});
+  });
+  calib.vec.segs.forEach(g=>{
+    if(g.l>0.88)return;
+    const x1=(g.x1-rx)*s,y1=(g.y1-ry)*s,x2=(g.x2-rx)*s,y2=(g.y2-ry)*s;
+    const dx=Math.abs(x2-x1),dy=Math.abs(y2-y1);
+    const len=Math.hypot(dx,dy);
+    if(len<400)return;
+    if(dx>50&&dy>50)return;           // 斜め線は無視
+    const wmm=(g.w||1)*s;
+    if(wmm<35)return;                 // 細線＝寸法線・通り芯など
+    const cx=(x1+x2)/2,cy=(y1+y2)/2;
+    if(cx<-200||cy<-200||cx>W+200||cy>D+200)return;
+    if(dx>=dy&&(cy<M||cy>D-M))return; // 外周壁は部屋の枠で表現済み
+    if(dy>dx&&(cx<M||cx>W-M))return;
+    cands.push({kind:'wall',cx,cy,len:Math.round(len/50)*50,
+      th:clamp(Math.round(wmm/10)*10,60,300),horiz:dx>=dy});
+  });
+  // 塗りパス：平行な2辺が40〜360mm間隔で向き合う「薄い帯」だけを壁と認定
+  (calib.vec.fills||[]).forEach(f=>{
+    if(f.l>0.88)return;
+    const hs=[],vs=[];
+    f.edges.forEach(e=>{
+      const x1=(e.x1-rx)*s,y1=(e.y1-ry)*s,x2=(e.x2-rx)*s,y2=(e.y2-ry)*s;
+      const dx=Math.abs(x2-x1),dy=Math.abs(y2-y1);
+      if(dx>=400&&dy<=30)hs.push({p:(y1+y2)/2,a:Math.min(x1,x2),b:Math.max(x1,x2)});
+      else if(dy>=400&&dx<=30)vs.push({p:(x1+x2)/2,a:Math.min(y1,y2),b:Math.max(y1,y2)});
+    });
+    const pair=(arr,horiz)=>{
+      arr.sort((p,q)=>p.p-q.p);
+      for(let i=0;i<arr.length;i++)for(let j=i+1;j<arr.length;j++){
+        const d=arr[j].p-arr[i].p;
+        if(d>360)break;
+        if(d<40)continue;
+        const a=Math.max(arr[i].a,arr[j].a),b=Math.min(arr[i].b,arr[j].b);
+        if(b-a<600)continue; // 短い帯は什器の木目等の誤認が多い
+        const mid=(arr[i].p+arr[j].p)/2,ctr=(a+b)/2;
+        const c=horiz?{kind:'wall',cx:ctr,cy:mid,len:b-a,th:d,horiz:true}
+                     :{kind:'wall',cx:mid,cy:ctr,len:b-a,th:d,horiz:false};
+        if(c.cx<-200||c.cy<-200||c.cx>W+200||c.cy>D+200)continue;
+        if(c.horiz&&(c.cy<M||c.cy>D-M))continue;
+        if(!c.horiz&&(c.cx<M||c.cx>W-M))continue;
+        cands.push(c);
+      }
+    };
+    pair(hs,true);pair(vs,false);
+  });
+  // 併合（平行で近接した線を1本に）
+  const walls=[],pillars=[];
+  cands.filter(c=>c.kind==='wall').sort((a,b)=>b.len-a.len).forEach(c=>{
+    if(walls.length>=80)return;
+    if(c.len>=(c.horiz?W:D)*.92)return; // 全幅貫通の帯は床段差・断面線の誤認
+    const dup=walls.find(w=>w.horiz===c.horiz&&
+      Math.abs(w.horiz?w.cy-c.cy:w.cx-c.cx)<160&&
+      Math.abs(w.horiz?w.cx-c.cx:w.cy-c.cy)<(w.len+c.len)/2);
+    if(!dup)walls.push(c);
+  });
+  cands.filter(c=>c.kind==='pillar').forEach(c=>{
+    if(pillars.length>=40)return;
+    if(pillars.some(p=>Math.hypot(p.cx-c.cx,p.cy-c.cy)<400))return;
+    pillars.push(c);
+  });
+  const items=[];
+  walls.forEach(c=>items.push({id:S.idc++,type:'swall',cx:Math.round(c.cx/25)*25,cy:Math.round(c.cy/25)*25,
+    w:Math.max(300,c.len),h:c.th,rot:c.horiz?0:90}));
+  pillars.forEach(c=>items.push({id:S.idc++,type:'pillar',cx:Math.round(c.cx/25)*25,cy:Math.round(c.cy/25)*25,
+    w:Math.max(150,Math.round(c.w/25)*25),h:Math.max(150,Math.round(c.h/25)*25),rot:0}));
+  return items;
+}
+function applyCalib(){
+  S.room.W=Math.round(calib.rect.w*calib.mmPerPx);
+  S.room.D=Math.round(calib.rect.h*calib.mmPerPx);
+  S.room.aisle=900;
+  S.bg={img:calib.img,mmPerPx:calib.mmPerPx,
+        origin:{x:-calib.rect.x*calib.mmPerPx,y:-calib.rect.y*calib.mmPerPx},
+        visible:true,opacity:.55};
+  S.items=[];
+  if($('autoWall').checked&&calib.vec){
+    try{S.items=extractStructure()}catch(err){S.items=[]}
+  }
+  $('bgCtl').classList.remove('hide');
+}
+
+/* ================= 自動配置（数値入力モードの初期値） ================= */
+function mk(type,cx,cy,w,h,rot){
+  return{id:S.idc++,type,cx,cy,w:w||CAT[type].w,h:h||CAT[type].h,rot:rot||0};
+}
+function seedAuto(){
+  const W=S.room.W,D=S.room.D,g=S.genre,aisle=S.room.aisle;
+  const kpos=$('kpos').value,items=[];
+  const CH=550,GAP=450;
+  let sx0=0,sx1=W,sy0=0,sy1=D-900;
+  const kA=W*D*g.kitchenRatio;
+  if(kpos==='back'){
+    const kd=clamp(kA/W,2200,D*.45);
+    items.push(mk('kitchen',W/2,kd/2,W,kd));sy0=kd;
+  }else{
+    const kw=clamp(kA/D,2200,W*.45);
+    if(kpos==='left'){items.push(mk('kitchen',kw/2,D/2,kw,D));sx0=kw}
+    else{items.push(mk('kitchen',W-kw/2,D/2,kw,D));sx1=W-kw}
+  }
+  const obstacles=[];
+  if($('toilet').checked&&sx1-sx0>3500){
+    const t=mk('wc',sx1-850,sy0+800);items.push(t);obstacles.push(t);
+  }
+  items.push(mk('reg',sx1-700,sy1-300));
+  obstacles.push(items[items.length-1]);
+  // カウンター
+  if(g.counterRatio>.1&&kpos==='back'){
+    const free=(sx1-sx0)-(obstacles.length?2400:0);
+    const len=Math.min(free*Math.min(1,g.counterRatio*1.6),free);
+    if(len>=1800){
+      items.push(mk('counter',sx0+len/2,sy0+250,Math.round(len/50)*50,500));
+      sy0+=250+500+750;
+    }
+  }
+  // ダーツレーン（左壁沿い・ボードを左壁に向ける＝既存店と同じ構成）
+  if(g.id==='darts'){
+    const n=Math.min(4,Math.floor((sy1-sy0-400)/950));
+    for(let i=0;i<n;i++)
+      items.push(mk('dart',sx0+1625,sy0+750+i*950,undefined,undefined,270));
+    if(n>0)sx0+=3250+400;
+  }
+  // テーブル帯
+  const bandH=750+CH*2;let y=sy0,cnt={t4:0,t2:0};
+  while(sy1-y>=bandH){
+    let x=sx0+GAP;
+    while(sx1-GAP-x>=700){
+      const ov=obstacles.some(o=>Math.abs(o.cx-x-600)<o.w/2+900&&Math.abs(o.cy-(y+bandH/2))<o.h/2+bandH/2);
+      if(ov){x+=600;continue}
+      const wantT4=(cnt.t4+cnt.t2)===0?g.mix.t4>=g.mix.t2:(cnt.t4/(cnt.t4+cnt.t2))<g.mix.t4;
+      const t=(wantT4&&sx1-GAP-x>=1200)?CAT.t4:CAT.t2;
+      items.push(mk(t===CAT.t4?'t4':'t2',x+t.w/2,y+CH+t.h/2));
+      cnt[t===CAT.t4?'t4':'t2']++;x+=t.w+GAP;
+    }
+    y+=bandH+aisle;
+  }
+  items.push(mk('door',clamp(W*.2,600,W-600),D-100));
+  S.items=items;
+}
+
+/* ================= エディタ ================= */
+const view={x:0,y:0,z:.05};
+function sizeCanvases(){
+  const r=window.devicePixelRatio||1;
+  [['ed',580],['p3d',540]].forEach(([id,h])=>{
+    const c=$(id),w=c.parentElement.clientWidth-2;
+    c.style.width=w+'px';c.width=w*r;c.height=h*r;
+  });
+}
+window.addEventListener('resize',()=>{if(S.step===4){sizeCanvases();renderEd();render3D()}});
+function fitView(){
+  const c=$('ed'),r=window.devicePixelRatio||1,cw=c.width/r,ch=c.height/r;
+  view.z=Math.min(cw/(S.room.W+3000),ch/(S.room.D+3000));
+  view.x=-(cw/view.z-S.room.W)/2;view.y=-(ch/view.z-S.room.D)/2;
+}
+const w2s=p=>({x:(p.x-view.x)*view.z,y:(p.y-view.y)*view.z});
+const s2w=p=>({x:p.x/view.z+view.x,y:p.y/view.z+view.y});
+function chairsFor(it){
+  const out=[],{w,h}=it,t=it.type;
+  if(t==='t4'||t==='t6'||t==='t2'||t==='high'){
+    const n=t==='t4'?2:(t==='t6'?3:1);
+    for(let i=0;i<n;i++){
+      const lx=n===1?0:(w/n)*(i+.5)-w/2;
+      out.push({lx,ly:-h/2-250});out.push({lx,ly:h/2+250});
+    }
+  }else if(t==='round'){
+    for(let k=0;k<3;k++){const a=(90+k*120)*Math.PI/180;
+      out.push({lx:Math.cos(a)*(w/2+230),ly:Math.sin(a)*(w/2+230)})}
+  }else if(t==='counter'){
+    const L=Math.max(w,h),m=Math.floor(L/600);
+    for(let i=0;i<m;i++){
+      const s=(i+.5)*(L/m)-L/2;
+      if(w>=h)out.push({lx:s,ly:h/2+300,stool:1});
+      else out.push({lx:w/2+300,ly:s,stool:1});
+    }
+  }
+  return out;
+}
+function drawLabel(ctx,wx,wy,text,col,size){
+  const p=w2s({x:wx,y:wy});
+  ctx.save();ctx.setTransform(window.devicePixelRatio||1,0,0,window.devicePixelRatio||1,0,0);
+  ctx.font=`700 ${size||12}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle=col||'#555';ctx.fillText(text,p.x,p.y);ctx.restore();
+}
+function renderEd(){
+  const c=$('ed');if(!c.width)return;
+  const ctx=c.getContext('2d'),r=window.devicePixelRatio||1;
+  const cw=c.width/r,ch=c.height/r,z=view.z;
+  const st_=S.style||STYLES[0],cc=st_.c;
+  ctx.setTransform(r,0,0,r,0,0);
+  ctx.fillStyle='#eceae6';ctx.fillRect(0,0,cw,ch);
+  // 下絵
+  if(S.bg&&S.bg.visible){
+    const o=w2s(S.bg.origin),s=S.bg.mmPerPx*z;
+    ctx.globalAlpha=S.bg.opacity;
+    ctx.drawImage(S.bg.img,o.x,o.y,S.bg.img.width*s,S.bg.img.height*s);
+    ctx.globalAlpha=1;
+  }
+  const rp=w2s({x:0,y:0});
+  if(!S.bg){ctx.fillStyle='#fbfaf9';ctx.fillRect(rp.x,rp.y,S.room.W*z,S.room.D*z)}
+  // グリッド 1m
+  if(z>.02){
+    ctx.strokeStyle='rgba(0,0,0,.05)';ctx.lineWidth=1;
+    for(let x=0;x<=S.room.W;x+=1000){const p=w2s({x,y:0});ctx.beginPath();ctx.moveTo(p.x,rp.y);ctx.lineTo(p.x,rp.y+S.room.D*z);ctx.stroke()}
+    for(let y=0;y<=S.room.D;y+=1000){const p=w2s({x:0,y});ctx.beginPath();ctx.moveTo(rp.x,p.y);ctx.lineTo(rp.x+S.room.W*z,p.y);ctx.stroke()}
+  }
+  // 外壁
+  ctx.strokeStyle='#3a3733';ctx.lineWidth=Math.max(2.5,150*z);
+  ctx.strokeRect(rp.x,rp.y,S.room.W*z,S.room.D*z);
+  // アイテム
+  const overlaps=findOverlaps();
+  S.items.forEach(it=>{
+    const p=w2s({x:it.cx,y:it.cy});
+    ctx.save();ctx.translate(p.x,p.y);ctx.rotate(it.rot*Math.PI/180);ctx.scale(z,z);
+    const w=it.w,h=it.h,bad=overlaps.has(it.id);
+    const lw=Math.max(1.2/z,25);
+    ctx.lineWidth=lw;
+    const t=it.type;
+    if(t==='kitchen'||t==='storage'){
+      ctx.fillStyle=t==='kitchen'?'rgba(150,145,138,.28)':'rgba(120,120,125,.22)';
+      ctx.fillRect(-w/2,-h/2,w,h);
+      ctx.strokeStyle='#8d8880';ctx.setLineDash([160,90]);ctx.strokeRect(-w/2,-h/2,w,h);ctx.setLineDash([]);
+      // ハッチ
+      ctx.save();ctx.beginPath();ctx.rect(-w/2,-h/2,w,h);ctx.clip();
+      ctx.strokeStyle='rgba(0,0,0,.08)';ctx.lineWidth=20;
+      for(let d=-w-h;d<w+h;d+=350){ctx.beginPath();ctx.moveTo(d-h/2,-h/2);ctx.lineTo(d+h/2,h/2);ctx.stroke()}
+      ctx.restore();
+    }else if(t==='wc'){
+      ctx.fillStyle='#fff';ctx.strokeStyle='#8d8880';
+      ctx.fillRect(-w/2,-h/2,w,h);ctx.strokeRect(-w/2,-h/2,w,h);
+      ctx.strokeStyle='#b5b0a8';ctx.beginPath();ctx.ellipse(0,h/8,180,240,0,0,7);ctx.stroke();
+    }else if(t==='reg'){
+      ctx.fillStyle=woodOf(it);ctx.globalAlpha=.85;ctx.fillRect(-w/2,-h/2,w,h);ctx.globalAlpha=1;
+      ctx.strokeStyle='#5c5852';ctx.strokeRect(-w/2,-h/2,w,h);
+    }else if(t==='door'||t==='door2'){
+      ctx.strokeStyle=t==='door2'?'#7d6f5c':(cc.accent==='#7c6cf0'?cc.accent:'#1f6f5c');ctx.lineWidth=lw*2;
+      ctx.beginPath();ctx.moveTo(-w/2,0);ctx.lineTo(w/2,0);ctx.stroke();
+      ctx.lineWidth=lw;ctx.setLineDash([90,60]);
+      ctx.beginPath();ctx.arc(-w/2,0,w,-Math.PI/2,0);ctx.stroke();ctx.setLineDash([]);
+    }else if(t==='wall'){
+      ctx.fillStyle='#4a453f';ctx.fillRect(-w/2,-h/2,w,h);
+    }else if(t==='swall'){
+      ctx.fillStyle='#57534e';ctx.fillRect(-w/2,-h/2,w,h);
+      ctx.strokeStyle='#2e2b28';ctx.strokeRect(-w/2,-h/2,w,h);
+    }else if(t==='pillar'){
+      ctx.fillStyle='#6e6a66';ctx.fillRect(-w/2,-h/2,w,h);
+      ctx.strokeStyle='#3a3733';ctx.strokeRect(-w/2,-h/2,w,h);
+      ctx.beginPath();ctx.moveTo(-w/2,-h/2);ctx.lineTo(w/2,h/2);ctx.moveTo(w/2,-h/2);ctx.lineTo(-w/2,h/2);ctx.stroke();
+    }else if(t==='beam'){
+      ctx.strokeStyle='#9a938b';ctx.setLineDash([220,140]);
+      ctx.strokeRect(-w/2,-h/2,w,h);ctx.setLineDash([]);
+    }else if(t==='dart'){
+      ctx.fillStyle='rgba(35,35,45,.75)';ctx.fillRect(-w/2,-h/2,w,h);
+      ctx.strokeStyle='#26262b';ctx.strokeRect(-w/2,-h/2,w,h);
+      // マシン筐体
+      ctx.fillStyle='#1b1b20';ctx.fillRect(-325,-h/2,650,450);
+      // ボード
+      ctx.beginPath();ctx.arc(0,-h/2+235,195,0,7);ctx.fillStyle='#2e2e33';ctx.fill();
+      ctx.strokeStyle=cc.accent;ctx.lineWidth=lw*1.5;ctx.stroke();
+      ctx.beginPath();ctx.arc(0,-h/2+235,65,0,7);ctx.fillStyle=cc.accent;ctx.fill();
+      // スローライン（ボード面から2440）
+      const ly=-h/2+450+2440;
+      ctx.strokeStyle='#f5d76e';ctx.lineWidth=lw*1.6;
+      ctx.beginPath();ctx.moveTo(-w/2+40,ly);ctx.lineTo(w/2-40,ly);ctx.stroke();
+    }else if(t==='sofa'){
+      const fc=fabricOf(it);
+      ctx.fillStyle=fc;ctx.fillRect(-w/2,-h/2,w,h);
+      ctx.fillStyle=shade(fc,.72);ctx.fillRect(-w/2,-h/2,w,140);
+      ctx.strokeStyle='#4a453f';ctx.strokeRect(-w/2,-h/2,w,h);
+    }else{ // テーブル・カウンター
+      ctx.fillStyle=woodOf(it);
+      if(t==='round'){ctx.beginPath();ctx.arc(0,0,w/2,0,7);ctx.fill();ctx.strokeStyle='#4a453f';ctx.stroke()}
+      else{ctx.fillRect(-w/2,-h/2,w,h);ctx.strokeStyle='#4a453f';ctx.strokeRect(-w/2,-h/2,w,h)}
+      ctx.fillStyle=fabricOf(it);ctx.strokeStyle='#4a453f';
+      chairsFor(it).forEach(chp=>{
+        ctx.beginPath();ctx.arc(chp.lx,chp.ly,chp.stool?150:185,0,7);ctx.fill();ctx.stroke();
+      });
+    }
+    if(bad){ctx.strokeStyle='rgba(179,53,47,.9)';ctx.lineWidth=lw*2;ctx.setLineDash([120,80]);
+      ctx.strokeRect(-w/2-60,-h/2-60,w+120,h+120);ctx.setLineDash([])}
+    ctx.restore();
+    if(it.id===S.sel){
+      const hw=(it.rot%180?it.h:it.w)/2,hh=(it.rot%180?it.w:it.h)/2;
+      const a=w2s({x:it.cx-hw,y:it.cy-hh});
+      ctx.setTransform(r,0,0,r,0,0);
+      ctx.strokeStyle='#1f6f5c';ctx.lineWidth=2;ctx.setLineDash([6,4]);
+      ctx.strokeRect(a.x-4,a.y-4,hw*2*z+8,hh*2*z+8);ctx.setLineDash([]);
+      if(CAT[it.type].rez){
+        resHandles(it).forEach(hd=>{
+          const p=w2s(hd);
+          ctx.fillStyle='#1f6f5c';ctx.strokeStyle='#fff';ctx.lineWidth=2.5;
+          ctx.beginPath();ctx.arc(p.x,p.y,8,0,7);ctx.fill();ctx.stroke();
+        });
+      }
+    }
+  });
+  // ラベル（非回転・画面座標）
+  S.items.forEach(it=>{
+    const t=it.type;
+    if(t==='kitchen')drawLabel(ctx,it.cx,it.cy,`厨房 ${(it.w*it.h/1e6).toFixed(1)}㎡`,'#5c5852',12);
+    if(t==='storage')drawLabel(ctx,it.cx,it.cy,'倉庫','#5c5852',11);
+    if(t==='wc')drawLabel(ctx,it.cx,it.cy,'WC','#5c5852',11);
+    if(t==='reg')drawLabel(ctx,it.cx,it.cy,'レジ','#fff',10);
+    if(t==='counter')drawLabel(ctx,it.cx,it.cy,`${seatsOf(it)}席`,'#fff',10);
+    if(t==='dart')drawLabel(ctx,it.cx,it.cy+it.h/4,'DARTS','#f5d76e',10);
+    if(t==='door')drawLabel(ctx,it.cx,it.cy+300,'入口','#1f6f5c',11);
+    if(t==='door2')drawLabel(ctx,it.cx,it.cy+280,'ドア','#7d6f5c',10);
+    if(t==='beam')drawLabel(ctx,it.cx,it.cy,'梁','#8d8880',10);
+  });
+  // 追加直後のハイライトリング
+  if(flash){
+    const fit=S.items.find(i=>i.id===flash.id);
+    if(fit){
+      const p=w2s({x:fit.cx,y:fit.cy});
+      const t01=Math.max(0,(flash.until-performance.now())/1600);
+      const rad=Math.max((fit.rot%180?fit.h:fit.w),(fit.rot%180?fit.w:fit.h))/2*z+18;
+      ctx.setTransform(r,0,0,r,0,0);
+      ctx.strokeStyle=`rgba(31,111,92,${(.35+.65*t01).toFixed(2)})`;
+      ctx.lineWidth=4;
+      ctx.beginPath();ctx.arc(p.x,p.y,rad+Math.sin(performance.now()/110)*7,0,7);ctx.stroke();
+    }
+  }
+  // 寸法
+  ctx.setTransform(r,0,0,r,0,0);
+  ctx.font='700 12px sans-serif';ctx.fillStyle='#5c5852';ctx.textAlign='center';
+  ctx.fillText(`${(S.room.W/1000).toFixed(1)}m`,rp.x+S.room.W*z/2,rp.y-8);
+  ctx.save();ctx.translate(rp.x-10,rp.y+S.room.D*z/2);ctx.rotate(-Math.PI/2);
+  ctx.fillText(`${(S.room.D/1000).toFixed(1)}m`,0,0);ctx.restore();
+}
+function aabb(it){
+  const hw=(it.rot%180?it.h:it.w)/2,hh=(it.rot%180?it.w:it.h)/2;
+  return{x0:it.cx-hw,x1:it.cx+hw,y0:it.cy-hh,y1:it.cy+hh};
+}
+function findOverlaps(){
+  const set=new Set();
+  const fur=S.items.filter(i=>!CAT[i.type].zone&&i.type!=='door'&&i.type!=='door2'&&i.type!=='wall'&&i.type!=='beam'&&i.type!=='swall');
+  for(let i=0;i<fur.length;i++)for(let j=i+1;j<fur.length;j++){
+    const a=aabb(fur[i]),b=aabb(fur[j]);
+    if(a.x0<b.x1-15&&b.x0<a.x1-15&&a.y0<b.y1-15&&b.y0<a.y1-15){set.add(fur[i].id);set.add(fur[j].id)}
+  }
+  S.items.forEach(it=>{
+    if(it.type==='door')return;
+    const a=aabb(it);
+    if(a.x0<-60||a.y0<-60||a.x1>S.room.W+60||a.y1>S.room.D+60)set.add(it.id);
+  });
+  return set;
+}
+/* --- 操作 --- */
+function resHandles(it){ // 伸縮ハンドル（+x端 / +y端の中点）
+  const rd=it.rot*Math.PI/180,cs=Math.cos(rd),sn=Math.sin(rd);
+  const pt=(lx,ly)=>({x:it.cx+lx*cs-ly*sn,y:it.cy+lx*sn+ly*cs});
+  return[{axis:'w',...pt(it.w/2,0)},{axis:'h',...pt(0,it.h/2)}];
+}
+function pushUndo(){S.undo.push(JSON.stringify(S.items));if(S.undo.length>60)S.undo.shift()}
+function popUndo(){if(!S.undo.length)return;S.items=JSON.parse(S.undo.pop());S.sel=null;syncSel();renderEd();render3D();updateAll()}
+function hitTest(w){
+  for(let i=S.items.length-1;i>=0;i--){
+    const it=S.items[i],r=-it.rot*Math.PI/180;
+    const dx=w.x-it.cx,dy=w.y-it.cy;
+    const lx=dx*Math.cos(r)-dy*Math.sin(r),ly=dx*Math.sin(r)+dy*Math.cos(r);
+    const mgn=120;
+    if(Math.abs(lx)<=it.w/2+mgn&&Math.abs(ly)<=it.h/2+mgn)return it;
+  }
+  return null;
+}
+{
+  const c=$('ed');let drag=null;
+  c.addEventListener('pointerdown',e=>{
+    c.setPointerCapture(e.pointerId);
+    const r=c.getBoundingClientRect(),sp={x:e.clientX-r.left,y:e.clientY-r.top},w=s2w(sp);
+    // 選択中の可変什器なら、まず伸縮ハンドルを判定
+    const selIt=S.items.find(i=>i.id===S.sel);
+    if(selIt&&CAT[selIt.type].rez){
+      const hd=resHandles(selIt).find(h=>{const q=w2s(h);return Math.hypot(q.x-sp.x,q.y-sp.y)<15});
+      if(hd){pushUndo();drag={t:'resize',it:selIt,axis:hd.axis};return}
+    }
+    const it=hitTest(w);
+    if(it){S.sel=it.id;drag={t:'item',it,ox:w.x-it.cx,oy:w.y-it.cy,st:false}}
+    else{S.sel=null;drag={t:'pan',sx:sp.x,sy:sp.y,vx:view.x,vy:view.y}}
+    syncSel();renderEd();
+  });
+  c.addEventListener('pointermove',e=>{
+    if(!drag)return;
+    const r=c.getBoundingClientRect(),sp={x:e.clientX-r.left,y:e.clientY-r.top};
+    if(drag.t==='pan'){view.x=drag.vx-(sp.x-drag.sx)/view.z;view.y=drag.vy-(sp.y-drag.sy)/view.z}
+    else if(drag.t==='resize'){
+      const it=drag.it,w=s2w(sp);
+      const rd=-it.rot*Math.PI/180;
+      const dx=w.x-it.cx,dy=w.y-it.cy;
+      const lx=dx*Math.cos(rd)-dy*Math.sin(rd),ly=dx*Math.sin(rd)+dy*Math.cos(rd);
+      const zone=CAT[it.type].zone;
+      const cs=Math.cos(it.rot*Math.PI/180),sn=Math.sin(it.rot*Math.PI/180);
+      if(drag.axis==='w'){ // 反対側の端を固定して長さ変更
+        const nw=clamp(Math.round((lx+it.w/2)/50)*50,zone?600:300,25000);
+        const d2=(nw-it.w)/2;
+        it.cx+=d2*cs;it.cy+=d2*sn;it.w=nw;
+      }else{
+        const nh=clamp(Math.round((ly+it.h/2)/50)*50,it.type==='wall'?60:(zone?600:300),25000);
+        const d2=(nh-it.h)/2;
+        it.cx+=-d2*sn;it.cy+=d2*cs;it.h=nh;
+      }
+      syncSel();
+    }
+    else{
+      if(!drag.st){pushUndo();drag.st=true}
+      const w=s2w(sp);
+      drag.it.cx=Math.round((w.x-drag.ox)/25)*25;
+      drag.it.cy=Math.round((w.y-drag.oy)/25)*25;
+    }
+    renderEd();
+  });
+  c.addEventListener('pointerup',()=>{if(drag&&(drag.t==='item'||drag.t==='resize')){render3D();updateAll()}drag=null});
+  c.addEventListener('wheel',e=>{
+    e.preventDefault();
+    const r=c.getBoundingClientRect(),sp={x:e.clientX-r.left,y:e.clientY-r.top},w=s2w(sp);
+    view.z=clamp(view.z*wheelF(e),.008,1.2);
+    view.x=w.x-sp.x/view.z;view.y=w.y-sp.y/view.z;
+    renderEd();
+  },{passive:false});
+}
+window.addEventListener('keydown',e=>{
+  if(S.step!==2)return;
+  if(/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))return;
+  if(e.ctrlKey&&e.key==='z'){e.preventDefault();popUndo();return}
+  const it=S.items.find(i=>i.id===S.sel);
+  if(e.ctrlKey&&e.key==='d'&&it){e.preventDefault();dupSel();return}
+  if(!it)return;
+  if(e.key==='r'||e.key==='R'){rotSel()}
+  else if(e.key==='Delete'||e.key==='Backspace'){delSel()}
+  else if(e.key.startsWith('Arrow')){
+    e.preventDefault();pushUndo();
+    const d=e.shiftKey?250:50;
+    if(e.key==='ArrowLeft')it.cx-=d;if(e.key==='ArrowRight')it.cx+=d;
+    if(e.key==='ArrowUp')it.cy-=d;if(e.key==='ArrowDown')it.cy+=d;
+    renderEd();render3D();updateAll();
+  }
+});
+function rotSel(){const it=S.items.find(i=>i.id===S.sel);if(!it)return;
+  pushUndo();it.rot=(it.rot+90)%360;renderEd();render3D();updateAll()}
+function delSel(){const i=S.items.findIndex(x=>x.id===S.sel);if(i<0)return;
+  pushUndo();S.items.splice(i,1);S.sel=null;syncSel();renderEd();render3D();updateAll()}
+function dupSel(){const it=S.items.find(i=>i.id===S.sel);if(!it)return;
+  pushUndo();const n={...it,id:S.idc++,cx:it.cx+400,cy:it.cy+400};S.items.push(n);S.sel=n.id;
+  syncSel();renderEd();render3D();updateAll()}
+$('rotB').onclick=rotSel;$('delB').onclick=delSel;$('dupB').onclick=dupSel;
+$('undoB').onclick=popUndo;
+$('fitB').onclick=()=>{fitView();renderEd()};
+/* --- 家具パレット（ミニチュア付きカード） --- */
+function thumb(type){
+  const cv=document.createElement('canvas');cv.width=88;cv.height=68;
+  const x=cv.getContext('2d'),d=CAT[type];
+  const bw=d.w+900,bh=d.h+900;
+  const sc=Math.min(76/bw,56/bh);
+  x.translate(44,34);x.scale(sc,sc);
+  x.lineWidth=Math.max(35,2/sc);
+  const wood='#a97f4f',fab='#6f6a72',t=type;
+  if(t==='kitchen'||t==='storage'){
+    x.fillStyle='rgba(150,145,138,.3)';x.fillRect(-d.w/2,-d.h/2,d.w,d.h);
+    x.strokeStyle='#8d8880';x.setLineDash([220,130]);x.strokeRect(-d.w/2,-d.h/2,d.w,d.h);
+  }else if(t==='wc'){
+    x.fillStyle='#fff';x.fillRect(-d.w/2,-d.h/2,d.w,d.h);
+    x.strokeStyle='#8d8880';x.strokeRect(-d.w/2,-d.h/2,d.w,d.h);
+    x.beginPath();x.ellipse(0,d.h/8,180,240,0,0,7);x.stroke();
+  }else if(t==='door'||t==='door2'){
+    x.strokeStyle=t==='door2'?'#7d6f5c':'#1f6f5c';x.lineWidth=90;
+    x.beginPath();x.moveTo(-d.w/2,d.w/2);x.lineTo(d.w/2,d.w/2);x.stroke();
+    x.lineWidth=45;x.setLineDash([110,70]);
+    x.beginPath();x.arc(-d.w/2,d.w/2,d.w,-Math.PI/2,0);x.stroke();
+  }else if(t==='wall'){
+    x.fillStyle='#4a453f';x.fillRect(-d.w/2,-d.h/2,d.w,d.h);
+  }else if(t==='swall'){
+    x.fillStyle='#57534e';x.fillRect(-d.w/2,-d.h/2,d.w,d.h);
+  }else if(t==='pillar'){
+    x.fillStyle='#6e6a66';x.fillRect(-d.w/2,-d.h/2,d.w,d.h);
+    x.strokeStyle='#3a3733';x.strokeRect(-d.w/2,-d.h/2,d.w,d.h);
+  }else if(t==='beam'){
+    x.strokeStyle='#9a938b';x.setLineDash([260,160]);x.strokeRect(-d.w/2,-d.h/2,d.w,d.h);
+  }else if(t==='dart'){
+    x.fillStyle='#2a2a31';x.fillRect(-d.w/2,-d.h/2,d.w,d.h);
+    x.fillStyle='#111';x.fillRect(-325,-d.h/2,650,450);
+    x.beginPath();x.arc(0,-d.h/2+235,195,0,7);x.strokeStyle='#c96f2c';x.stroke();
+    x.strokeStyle='#f5d76e';x.beginPath();x.moveTo(-d.w/2+60,-d.h/2+2890);x.lineTo(d.w/2-60,-d.h/2+2890);x.stroke();
+  }else if(t==='sofa'){
+    x.fillStyle=fab;x.fillRect(-d.w/2,-d.h/2,d.w,d.h);
+    x.fillStyle=shade(fab,.7);x.fillRect(-d.w/2,-d.h/2,d.w,150);
+  }else{
+    x.fillStyle=wood;
+    if(t==='round'){x.beginPath();x.arc(0,0,d.w/2,0,7);x.fill()}
+    else x.fillRect(-d.w/2,-d.h/2,d.w,d.h);
+    if(t==='reg'){x.fillStyle='#5c5852';x.fillRect(-d.w/2,-d.h/2,d.w,120)}
+    x.fillStyle=fab;
+    chairsFor({type:t,w:d.w,h:d.h}).forEach(c=>{
+      x.beginPath();x.arc(c.lx,c.ly,c.stool?150:185,0,7);x.fill();
+    });
+  }
+  return cv;
+}
+let flash=null;
+function animFlash(){
+  if(!flash)return;
+  if(performance.now()>flash.until){flash=null;renderEd();return}
+  renderEd();requestAnimationFrame(animFlash);
+}
+function addItem(t){
+  pushUndo();
+  const c=$('ed'),r=window.devicePixelRatio||1;
+  const w=s2w({x:c.width/r/2,y:c.height/r/2});
+  const def=CAT[t];
+  // 見えている範囲の中央、かつ必ず部屋の内側に配置
+  const cx=clamp(Math.round(w.x/25)*25,Math.min(def.w/2,S.room.W/2),Math.max(S.room.W-def.w/2,S.room.W/2));
+  const cy=clamp(Math.round(w.y/25)*25,Math.min(def.h/2,S.room.D/2),Math.max(S.room.D-def.h/2,S.room.D/2));
+  const it=mk(t,cx,cy);
+  S.items.push(it);S.sel=it.id;
+  // 配置先が画面外なら視点を寄せる
+  const sp=w2s({x:it.cx,y:it.cy}),cwpx=c.width/r,chpx=c.height/r;
+  if(sp.x<40||sp.y<40||sp.x>cwpx-40||sp.y>chpx-40){
+    view.x=it.cx-cwpx/(2*view.z);view.y=it.cy-chpx/(2*view.z);
+  }
+  flash={id:it.id,until:performance.now()+1600};
+  c.scrollIntoView({behavior:'smooth',block:'nearest'});
+  syncSel();render3D();updateAll();animFlash();
+}
+Object.keys(CAT).forEach(k=>{
+  const b=document.createElement('button');b.className='chip';b.title=CAT[k].n+'を追加';
+  b.appendChild(thumb(k));
+  const sp=document.createElement('span');sp.textContent=CAT[k].s;b.appendChild(sp);
+  b.onclick=()=>addItem(k);
+  $('palGrid').appendChild(b);
+});
+$('bgV').onchange=e=>{if(S.bg)S.bg.visible=e.target.checked;renderEd()};
+$('bgOp').oninput=e=>{if(S.bg)S.bg.opacity=e.target.value/100;renderEd()};
+function syncSel(){
+  const it=S.items.find(i=>i.id===S.sel),bar=$('selbar');
+  if(!it){bar.style.display='none';return}
+  bar.style.display='flex';
+  $('selName').textContent=CAT[it.type].n;
+  const seats=seatsOf(it);
+  $('selFix').textContent=seats?`（${seats}席）`:'';
+  if(CAT[it.type].rez){
+    $('selSize').classList.remove('hide');
+    $('selW').value=it.w;$('selH').value=it.h;
+  }else $('selSize').classList.add('hide');
+  // 仕上げスウォッチ
+  const hasW=WOOD_T.includes(it.type),hasF=FAB_T.includes(it.type),hasL=LEG_T.includes(it.type);
+  $('finRow').classList.toggle('hide',!(hasW||hasF||hasL));
+  const wNow=woodOf(it),fNow=fabricOf(it);
+  $('finWood').innerHTML=hasW?FIN.woods.map(o=>
+    `<i data-w="${o.v}" title="${o.n}" class="${o.v===wNow?'on':''}" style="background:${o.v}"></i>`).join(''):'';
+  $('finWood').style.display=hasW?'inline-flex':'none';
+  $('finWood').previousSibling.textContent=hasW?'｜ 木部':'｜';
+  $('finFab').innerHTML=hasF?FIN.fabrics.map(o=>
+    `<i data-f="${o.v}" title="${o.n}" class="${o.v===fNow?'on':''}" style="background:${o.v}"></i>`).join(''):'';
+  $('finFab').style.display=hasF?'inline-flex':'none';
+  $('legB').style.display=hasL?'':'none';
+  if(hasL)$('legB').textContent='脚：'+(legsOf(it)==='steel'?'スチール':'木');
+}
+function refreshSel(){renderEd();render3D();updateAll();syncSel()}
+$('finWood').onclick=e=>{
+  const v=e.target.dataset.w;if(!v)return;
+  const it=S.items.find(i=>i.id===S.sel);if(!it)return;
+  pushUndo();it.fin={...(it.fin||{}),wood:v};refreshSel();
+};
+$('finFab').onclick=e=>{
+  const v=e.target.dataset.f;if(!v)return;
+  const it=S.items.find(i=>i.id===S.sel);if(!it)return;
+  pushUndo();it.fin={...(it.fin||{}),fab:v};refreshSel();
+};
+$('legB').onclick=()=>{
+  const it=S.items.find(i=>i.id===S.sel);if(!it)return;
+  pushUndo();it.fin={...(it.fin||{}),legs:legsOf(it)==='steel'?'wood':'steel'};refreshSel();
+};
+$('selW').onchange=e=>{const it=S.items.find(i=>i.id===S.sel);if(!it)return;
+  pushUndo();it.w=clamp(+e.target.value,200,20000);renderEd();render3D();updateAll();syncSel()};
+$('selH').onchange=e=>{const it=S.items.find(i=>i.id===S.sel);if(!it)return;
+  pushUndo();it.h=clamp(+e.target.value,80,20000);renderEd();render3D();updateAll();syncSel()};
+
+/* ================= 保存・読込（物件ライブラリ＋自動保存） ================= */
+const LS_INDEX='dartsPlanner.index';
+function lsOK(){try{localStorage.setItem('__t','1');localStorage.removeItem('__t');return true}catch(e){return false}}
+function lsIndex(){if(!lsOK())return[];try{return JSON.parse(localStorage.getItem(LS_INDEX))||[]}catch(e){return[]}}
+function lsSaveIndex(ix){if(!lsOK())return;localStorage.setItem(LS_INDEX,JSON.stringify(ix))}
+function bgForStore(){
+  if(!S.bg)return null;
+  const img=S.bg.img,max=1800;
+  const sc=Math.min(1,max/Math.max(img.width,img.height));
+  let c=img;
+  if(sc<1){c=document.createElement('canvas');
+    c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);
+    c.getContext('2d').drawImage(img,0,0,c.width,c.height)}
+  return{mmPerPx:S.bg.mmPerPx/sc,origin:S.bg.origin,opacity:S.bg.opacity,png:c.toDataURL('image/jpeg',.55)};
+}
+function projectData(){
+  return{v:2,name:S.projName||'物件',genre:S.genre.id,style:S.style.id,
+         room:S.room,biz:S.biz,items:S.items,bg:bgForStore()};
+}
+let saveTimer=null;
+function autosave(now){
+  if(S.step<2||!S.projId)return;
+  clearTimeout(saveTimer);
+  const run=()=>{
+    if(!lsOK()){$('saveSt').textContent='⚠ この表示環境では自動保存が無効です（通常のブラウザで開けば有効）';return}
+    const stamp=()=>{
+      const ix=lsIndex().filter(p=>p.id!==S.projId);
+      ix.unshift({id:S.projId,name:S.projName||'物件',up:Date.now(),
+                  seats:S.items.reduce((s,i)=>s+seatsOf(i),0)});
+      lsSaveIndex(ix.slice(0,30));
+    };
+    try{
+      localStorage.setItem('dartsPlanner.proj.'+S.projId,JSON.stringify(projectData()));
+      stamp();
+      $('saveSt').textContent='✓ 自動保存 '+new Date().toTimeString().slice(0,5);
+    }catch(e){
+      try{ // 容量不足→下絵なしで保存
+        const d=projectData();d.bg=null;
+        localStorage.setItem('dartsPlanner.proj.'+S.projId,JSON.stringify(d));
+        stamp();
+        $('saveSt').textContent='✓ 保存（容量不足のため下絵は除外）';
+      }catch(e2){$('saveSt').textContent='⚠ 保存失敗（容量不足）'}
+    }
+  };
+  if(now)run();else saveTimer=setTimeout(run,1200);
+}
+window.addEventListener('beforeunload',()=>autosave(true));
+document.addEventListener('visibilitychange',()=>{if(document.hidden)autosave(true)});
+$('projName').onchange=e=>{S.projName=e.target.value.trim()||'物件';autosave()};
+async function restoreProject(d,id){
+  S.genre=GENRES.find(g=>g.id===d.genre)||S.genre;
+  S.style=STYLES.find(s=>s.id===d.style)||S.style;
+  S.room=d.room;S.biz=d.biz;S.items=d.items||[];
+  S.idc=Math.max(0,...S.items.map(i=>i.id),0)+1;S.sel=null;S.undo=[];
+  S.projId=id||('p'+Date.now().toString(36));
+  S.projName=d.name||'物件';
+  if(d.bg&&d.bg.png){
+    const img=new Image();
+    await new Promise(ok=>{img.onload=ok;img.onerror=ok;img.src=d.bg.png});
+    const cv=document.createElement('canvas');cv.width=img.width||1;cv.height=img.height||1;
+    cv.getContext('2d').drawImage(img,0,0);
+    S.bg={img:cv,mmPerPx:d.bg.mmPerPx,origin:d.bg.origin,visible:true,opacity:d.bg.opacity||.55};
+    $('bgCtl').classList.remove('hide');
+  }else{S.bg=null;$('bgCtl').classList.add('hide')}
+  $('projName').value=S.projName;
+  buildStyleUI();goto(2);
+}
+function renderProjLib(){
+  const ix=lsIndex();
+  $('projLib').classList.toggle('hide',!ix.length);
+  $('projList').innerHTML=ix.map(p=>{
+    const d=new Date(p.up);
+    const ds=`${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    return`<div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 12px;font-size:13px">
+      📄 <b>${p.name}</b>
+      <span style="color:var(--sub);font-size:11.5px">${ds} 更新・${p.seats||0}席</span>
+      <span style="flex:1"></span>
+      <button class="btn sm" data-open="${p.id}">開く</button>
+      <button class="btn sm ghost" data-del="${p.id}" style="color:var(--bad)">削除</button>
+    </div>`;
+  }).join('');
+}
+$('projList').onclick=async e=>{
+  const o=e.target.dataset.open,dl=e.target.dataset.del;
+  if(o){
+    try{
+      const d=JSON.parse(localStorage.getItem('dartsPlanner.proj.'+o));
+      if(!d){alert('データが見つかりませんでした');return}
+      await restoreProject(d,o);
+    }catch(err){alert('読み込めませんでした: '+err.message)}
+  }else if(dl){
+    if(!confirm('この物件データを削除しますか？'))return;
+    if(!lsOK())return;
+    localStorage.removeItem('dartsPlanner.proj.'+dl);
+    lsSaveIndex(lsIndex().filter(p=>p.id!==dl));
+    renderProjLib();
+  }
+};
+$('saveB').onclick=()=>{
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(projectData())],{type:'application/json'}));
+  a.download=(S.projName||'店舗プラン')+'_'+new Date().toISOString().slice(0,10)+'.json';a.click();
+};
+$('loadB').onclick=()=>$('projIn').click();
+$('projIn').onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{await restoreProject(JSON.parse(await f.text()),null);autosave()}
+  catch(err){alert('読み込めませんでした: '+err.message)}
+  e.target.value='';
+};
+
+/* ================= 3Dパース ================= */
+const cam={theta:Math.PI*.7,phi:.68,dist:18000,tz:900};
+function setPreset(p){
+  const M=Math.max(S.room.W,S.room.D);
+  if(p==='bird'){cam.theta=Math.PI*.7;cam.phi=.85;cam.dist=M*1.35;cam.tz=0}
+  if(p==='door'){cam.theta=Math.PI/2;cam.phi=.06;cam.dist=S.room.D*.62;cam.tz=1350}
+  if(p==='counter'){
+    const co=S.items.find(i=>i.type==='counter');
+    cam.theta=Math.PI/2;cam.phi=.04;cam.tz=1250;
+    cam.dist=co?Math.max(2500,Math.hypot(co.cx-S.room.W/2,co.cy-S.room.D/2)+2600):S.room.D*.4;
+  }
+  render3D();
+}
+document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>setPreset(b.dataset.view));
+{
+  const c=$('p3d');let drag=null;
+  c.addEventListener('pointerdown',e=>{c.setPointerCapture(e.pointerId);
+    drag={x:e.clientX,y:e.clientY,t:cam.theta,p:cam.phi};c.style.cursor='grabbing'});
+  c.addEventListener('pointermove',e=>{
+    if(!drag)return;
+    cam.theta=drag.t-(e.clientX-drag.x)*.006;
+    cam.phi=clamp(drag.p+(e.clientY-drag.y)*.004,.03,1.35);
+    render3D();
+  });
+  c.addEventListener('pointerup',()=>{drag=null;c.style.cursor='grab'});
+  c.addEventListener('wheel',e=>{e.preventDefault();
+    cam.dist=clamp(cam.dist/wheelF(e,0.0016),1800,80000);render3D()},{passive:false});
+}
+function addBox(P,cx,cy,rot,w,h,z0,z1,col){
+  const rd=rot*Math.PI/180,cs=Math.cos(rd),sn=Math.sin(rd);
+  const pt=(lx,ly,z)=>({x:cx+lx*cs-ly*sn,y:cy+lx*sn+ly*cs,z});
+  const a=w/2,b=h/2,C=[[-a,-b],[a,-b],[a,b],[-a,b]];
+  P.push({pts:C.map(([x,y])=>pt(x,y,z1)),col,n:{x:0,y:0,z:1}});
+  for(let i=0;i<4;i++){
+    const[x1,y1]=C[i],[x2,y2]=C[(i+1)%4];
+    let nx=y2-y1,ny=-(x2-x1);const L=Math.hypot(nx,ny);nx/=L;ny/=L;
+    P.push({pts:[pt(x1,y1,z0),pt(x2,y2,z0),pt(x2,y2,z1),pt(x1,y1,z1)],col,
+            n:{x:nx*cs-ny*sn,y:nx*sn+ny*cs,z:0}});
+  }
+}
+function addDisk(P,c0,dir,r0,col,n0){
+  // dir: 法線方向(水平単位ベクトル)。r0半径の16角形
+  const u={x:-dir.y,y:dir.x};
+  const pts=[];
+  for(let k=0;k<16;k++){
+    const a=k/16*Math.PI*2;
+    pts.push({x:c0.x+u.x*Math.cos(a)*r0,y:c0.y+u.y*Math.cos(a)*r0,z:c0.z+Math.sin(a)*r0});
+  }
+  P.push({pts,col,n:n0||dir});
+}
+function buildScene(){
+  const P=[],cc=S.style.c,W=S.room.W,D=S.room.D,H=S.room.ceil*1000;
+  const camPos=camWorld();
+  // 床（板張り表現：長手方向のストライプ）
+  P.push({pts:[{x:0,y:0,z:0},{x:W,y:0,z:0},{x:W,y:D,z:0},{x:0,y:D,z:0}],col:cc.floor,n:{x:0,y:0,z:1},floor:1});
+  const pw=620;
+  if(D>=W){for(let x=0;x<W;x+=pw*2){const x2=Math.min(x+pw,W);
+    P.push({pts:[{x,y:0,z:2},{x:x2,y:0,z:2},{x:x2,y:D,z:2},{x,y:D,z:2}],col:shade(cc.floor,.94),n:{x:0,y:0,z:1},floor:1});}}
+  else{for(let y=0;y<D;y+=pw*2){const y2=Math.min(y+pw,D);
+    P.push({pts:[{x:0,y,z:2},{x:W,y,z:2},{x:W,y:y2,z:2},{x:0,y:y2,z:2}],col:shade(cc.floor,.94),n:{x:0,y:0,z:1},floor:1});}}
+  // 壁（カメラ側はカット）
+  const walls=[
+    {pts:[{x:0,y:0,z:0},{x:W,y:0,z:0},{x:W,y:0,z:H},{x:0,y:0,z:H}],n:{x:0,y:-1,z:0},cx:W/2,cy:0,col:mixc(cc.wall,cc.accent,.3)},
+    {pts:[{x:W,y:0,z:0},{x:W,y:D,z:0},{x:W,y:D,z:H},{x:W,y:0,z:H}],n:{x:1,y:0,z:0},cx:W,cy:D/2,col:cc.wall},
+    {pts:[{x:W,y:D,z:0},{x:0,y:D,z:0},{x:0,y:D,z:H},{x:W,y:D,z:H}],n:{x:0,y:1,z:0},cx:W/2,cy:D,col:cc.wall},
+    {pts:[{x:0,y:D,z:0},{x:0,y:0,z:0},{x:0,y:0,z:H},{x:0,y:D,z:H}],n:{x:-1,y:0,z:0},cx:0,cy:D/2,col:cc.wall}
+  ];
+  walls.forEach(wl=>{
+    const dot=wl.n.x*(camPos.x-wl.cx)+wl.n.y*(camPos.y-wl.cy);
+    if(dot<0)P.push({pts:wl.pts,col:wl.col,n:{x:-wl.n.x,y:-wl.n.y,z:0},wall:1});
+  });
+  if(camPos.z<H)P.push({pts:[{x:0,y:0,z:H},{x:W,y:0,z:H},{x:W,y:D,z:H},{x:0,y:D,z:H}],col:cc.ceil,n:{x:0,y:0,z:-1},wall:1});
+  const lights=[];
+  const loc2w=(it,lx,ly)=>{
+    const r=it.rot*Math.PI/180,cs=Math.cos(r),sn=Math.sin(r);
+    return{x:it.cx+lx*cs-ly*sn,y:it.cy+lx*sn+ly*cs};
+  };
+  S.items.forEach(it=>{
+    const t=it.type,{cx,cy,rot,w,h}=it;
+    if(t==='kitchen'){
+      P.push({pts:[loc2wz(it,-w/2,-h/2,3),loc2wz(it,w/2,-h/2,3),loc2wz(it,w/2,h/2,3),loc2wz(it,-w/2,h/2,3)],
+              col:mixc(cc.floor,'#9a9a98',.55),n:{x:0,y:0,z:1}});
+      const bp=loc2w(it,0,-h/2+380);
+      addBox(P,bp.x,bp.y,rot,Math.max(600,w-500),650,0,880,'#b9bcc0');
+    }else if(t==='storage'){
+      addBox(P,cx,cy,rot,w,h,0,2035,mixc(cc.wall,'#666',.4));
+    }else if(t==='wc'){
+      addBox(P,cx,cy,rot,w,h,0,2100,mixc(cc.wall,'#888',.25));
+    }else if(t==='reg'){
+      addBox(P,cx,cy,rot,w,h,0,1000,woodOf(it));
+    }else if(t==='wall'){
+      addBox(P,cx,cy,rot,w,h,0,1500,woodOf(it));
+    }else if(t==='swall'){
+      addBox(P,cx,cy,rot,w,h,0,H,mixc(cc.wall,'#5a5650',.25));
+    }else if(t==='pillar'){
+      addBox(P,cx,cy,rot,w,h,0,H,mixc(cc.wall,'#66625d',.35));
+    }else if(t==='beam'){
+      addBox(P,cx,cy,rot,w,h,Math.max(H-550,H*.72),H,shade(cc.ceil,.82));
+    }else if(t==='door'||t==='door2'){
+      P.push({pts:[loc2wz(it,-w/2,-260,4),loc2wz(it,w/2,-260,4),loc2wz(it,w/2,260,4),loc2wz(it,-w/2,260,4)],
+              col:shade(cc.floor,.7),n:{x:0,y:0,z:1}});
+      // ドア枠＋扉パネル（造作壁に重ねると開口部として見える）
+      addBox(P,cx,cy,rot,w+120,160,2035,2110,shade(cc.wood,.7));
+      const hp=loc2w(it,-w/2+45,0),hp2=loc2w(it,w/2-45,0);
+      addBox(P,hp.x,hp.y,rot,90,160,0,2035,shade(cc.wood,.7));
+      addBox(P,hp2.x,hp2.y,rot,90,160,0,2035,shade(cc.wood,.7));
+      addBox(P,cx,cy,rot,Math.max(200,w-180),60,0,2010,woodOf(it));
+    }else if(t==='sofa'){
+      const fc=fabricOf(it);
+      addBox(P,cx,cy,rot,w,h,0,430,fc);
+      const bp=loc2w(it,0,-h/2+70);
+      addBox(P,bp.x,bp.y,rot,w,140,430,930,shade(fc,.8));
+    }else if(t==='dart'){
+      P.push({pts:[loc2wz(it,-w/2,-h/2,3),loc2wz(it,w/2,-h/2,3),loc2wz(it,w/2,h/2,3),loc2wz(it,-w/2,h/2,3)],
+              col:'#26262c',n:{x:0,y:0,z:1}});
+      const mp=loc2w(it,0,-h/2+225);
+      addBox(P,mp.x,mp.y,rot,650,450,0,2100,'#1d1d22');
+      // ボード面（筐体前面）
+      const rd=rot*Math.PI/180,dir={x:Math.sin(rd),y:Math.cos(rd)}; // ローカル+y方向
+      const fp=loc2w(it,0,-h/2+455);
+      addDisk(P,{x:fp.x,y:fp.y,z:1730},dir,235,'#33333a');
+      addDisk(P,{x:fp.x+dir.x*6,y:fp.y+dir.y*6,z:1730},dir,80,cc.accent);
+      // スローライン
+      const l1=loc2w(it,-w/2+50,-h/2+450+2440),l2=loc2w(it,w/2-50,-h/2+450+2440);
+      P.push({pts:[{x:l1.x,y:l1.y,z:5},{x:l2.x,y:l2.y,z:5},{x:l2.x,y:l2.y,z:6},{x:l1.x,y:l1.y,z:6}],col:'#f5d76e',n:{x:0,y:0,z:1},line:1});
+      lights.push({x:mp.x,y:mp.y,z:2150,r:120,c:'#ffd7a0'});
+    }else if(t==='counter'){
+      const wc2=woodOf(it),fc=fabricOf(it);
+      addBox(P,cx,cy,rot,w,h,0,950,shade(wc2,.85));
+      addBox(P,cx,cy,rot,w+80,h+80,950,1000,wc2);
+      chairsFor(it).forEach(chp=>{
+        const p=loc2w(it,chp.lx,chp.ly);
+        addBox(P,p.x,p.y,rot,90,90,0,620,cc.metal);
+        addBox(P,p.x,p.y,rot,340,340,620,680,fc);
+      });
+      lights.push({x:cx,y:cy,z:Math.min(H-260,2400),r:150,c:'#ffe2ae',pend:1,rot,w});
+    }else{ // テーブル類
+      const th=t==='high'?1000:700;
+      const wc2=woodOf(it),fc=fabricOf(it),lg=legsOf(it);
+      const lcol=lg==='steel'?'#2b2926':shade(wc2,.8);
+      if(t==='high'||t==='round'){
+        addBox(P,cx,cy,rot,120,120,0,th,lcol);
+        addBox(P,cx,cy,rot,440,440,0,35,lcol);
+      }else{
+        const ix=w/2-85,iy=h/2-85,ls=lg==='steel'?50:70;
+        [[-ix,-iy],[ix,-iy],[ix,iy],[-ix,iy]].forEach(([lx,ly])=>{
+          const p=loc2w(it,lx,ly);addBox(P,p.x,p.y,rot,ls,ls,0,th,lcol);
+        });
+      }
+      if(t==='round')addBox(P,cx,cy,rot,w*.92,w*.92,th,th+40,wc2);
+      else addBox(P,cx,cy,rot,w,h,th,th+40,wc2);
+      chairsFor(it).forEach(chp=>{
+        const sh=t==='high'?620:430;
+        const cls=lg==='steel'?34:44;
+        [[-145,-145],[145,-145],[145,145],[-145,145]].forEach(([ox,oy])=>{
+          const q=loc2w(it,chp.lx+ox,chp.ly+oy);addBox(P,q.x,q.y,rot,cls,cls,0,sh,lcol);
+        });
+        const p=loc2w(it,chp.lx,chp.ly);
+        addBox(P,p.x,p.y,rot,380,380,sh,sh+60,fc);
+        const bo=Math.abs(chp.ly)>Math.abs(chp.lx)?{x:0,y:Math.sign(chp.ly)*175}:{x:Math.sign(chp.lx)*175,y:0};
+        const bp=loc2w(it,chp.lx+bo.x,chp.ly+bo.y);
+        if(t!=='high')addBox(P,bp.x,bp.y,rot,Math.abs(bo.y)>0?380:55,Math.abs(bo.y)>0?55:380,sh+60,sh+440,shade(fc,.85));
+      });
+      lights.push({x:cx,y:cy,z:Math.min(H-300,1900),r:110,c:'#ffe2ae',pend:1});
+    }
+  });
+  // ボトル棚（カウンターがある場合、奥壁に）
+  const co=S.items.filter(i=>i.type==='counter').sort((a,b)=>Math.max(b.w,b.h)-Math.max(a.w,a.h))[0];
+  if(co&&co.cy<3200&&co.rot%180===0){
+    const sw=Math.max(co.w,co.h)*.85;
+    [1450,1780].forEach(z=>{
+      addBox(P,co.cx,140,0,sw,260,z,z+45,shade(cc.wood,.75));
+      for(let i=0;i<Math.floor(sw/260);i++){
+        const bx=co.cx-sw/2+130+i*260;
+        addBox(P,bx,140,0,80,80,z+45,z+45+180+(i*53%110),
+          [cc.accent,mixc(cc.accent,'#fff',.3),shade(cc.accent,.6)][i%3]);
+      }
+    });
+    lights.push({x:co.cx,y:200,z:2050,r:200,c:'#ffd9a8'});
+  }
+  return{P,lights};
+}
+function loc2wz(it,lx,ly,z){
+  const r=it.rot*Math.PI/180,cs=Math.cos(r),sn=Math.sin(r);
+  return{x:it.cx+lx*cs-ly*sn,y:it.cy+lx*sn+ly*cs,z};
+}
+function camWorld(){
+  const t={x:S.room.W/2,y:S.room.D/2,z:cam.tz};
+  return{x:t.x+cam.dist*Math.cos(cam.phi)*Math.cos(cam.theta),
+         y:t.y+cam.dist*Math.cos(cam.phi)*Math.sin(cam.theta),
+         z:t.z+cam.dist*Math.sin(cam.phi)};
+}
+function render3D(){
+  const c=$('p3d');if(!c.width||!S.style)return;
+  const ctx=c.getContext('2d'),r=window.devicePixelRatio||1;
+  const cw=c.width/r,chh=c.height/r;
+  ctx.setTransform(r,0,0,r,0,0);
+  const g=ctx.createLinearGradient(0,0,0,chh);
+  g.addColorStop(0,'#141317');g.addColorStop(1,'#28262b');
+  ctx.fillStyle=g;ctx.fillRect(0,0,cw,chh);
+  const cp=camWorld(),tgt={x:S.room.W/2,y:S.room.D/2,z:cam.tz};
+  let fwd={x:tgt.x-cp.x,y:tgt.y-cp.y,z:tgt.z-cp.z};
+  const fl=Math.hypot(fwd.x,fwd.y,fwd.z);fwd={x:fwd.x/fl,y:fwd.y/fl,z:fwd.z/fl};
+  // 平面図は y=下向き（南）。鏡像にならないよう right=(-fy,fx), up=fwd×right とする
+  let right={x:-fwd.y,y:fwd.x,z:0};
+  const rl=Math.hypot(right.x,right.y)||1;right={x:right.x/rl,y:right.y/rl,z:0};
+  const up={x:fwd.y*right.z-fwd.z*right.y,y:fwd.z*right.x-fwd.x*right.z,z:fwd.x*right.y-fwd.y*right.x};
+  const f=chh*1.05;
+  const proj=p=>{
+    const dx=p.x-cp.x,dy=p.y-cp.y,dz=p.z-cp.z;
+    const z=dx*fwd.x+dy*fwd.y+dz*fwd.z;
+    if(z<150)return null;
+    return{x:cw/2+f*(dx*right.x+dy*right.y)/z,y:chh/2-f*(dx*up.x+dy*up.y+dz*up.z)/z,z};
+  };
+  window._proj=proj; // 検証用フック
+  const L={x:.32,y:-.4,z:.86};
+  const{P,lights}=buildScene();
+  const flats=[],wallsP=[],rest=[];
+  P.forEach(p=>{
+    const pts=p.pts.map(proj);
+    if(pts.some(q=>!q))return;
+    const depth=pts.reduce((s,q)=>s+q.z,0)/pts.length;
+    const dt=Math.abs(p.n.x*L.x+p.n.y*L.y+p.n.z*L.z);
+    let br=.5+.5*dt;
+    if(p.floor)br=.9;
+    const q={pts,col:shade(p.col,br),depth,zl:p.pts[0].z};
+    // 床レベル（z≦8）→ 壁・天井 → 立体物 の順で描くと前後関係が破綻しない
+    if(p.pts.every(v=>v.z<=8))flats.push(q);
+    else if(p.wall)wallsP.push(q);
+    else rest.push(q);
+  });
+  flats.sort((a,b)=>a.zl-b.zl);
+  rest.sort((a,b)=>b.depth-a.depth);
+  const polys=flats.concat(wallsP,rest);
+  polys.forEach(p=>{
+    ctx.beginPath();ctx.moveTo(p.pts[0].x,p.pts[0].y);
+    for(let i=1;i<p.pts.length;i++)ctx.lineTo(p.pts[i].x,p.pts[i].y);
+    ctx.closePath();ctx.fillStyle=p.col;ctx.fill();
+    ctx.strokeStyle=p.col;ctx.lineWidth=.6;ctx.stroke();
+  });
+  // 照明グロー
+  lights.forEach(l=>{
+    const q=proj({x:l.x,y:l.y,z:l.z});if(!q)return;
+    const rad=clamp(l.r*f/q.z*3,8,120);
+    const gg=ctx.createRadialGradient(q.x,q.y,0,q.x,q.y,rad);
+    gg.addColorStop(0,'rgba(255,224,160,.75)');gg.addColorStop(1,'rgba(255,224,160,0)');
+    ctx.fillStyle=gg;ctx.beginPath();ctx.arc(q.x,q.y,rad,0,7);ctx.fill();
+    if(l.pend){
+      const top=proj({x:l.x,y:l.y,z:S.room.ceil*1000});
+      if(top){ctx.strokeStyle='rgba(30,28,26,.8)';ctx.lineWidth=1.4;
+        ctx.beginPath();ctx.moveTo(top.x,top.y);ctx.lineTo(q.x,q.y-6);ctx.stroke()}
+      ctx.fillStyle='#2a2723';
+      ctx.beginPath();ctx.ellipse(q.x,q.y-8,Math.max(4,rad*.28),Math.max(3,rad*.16),0,0,7);ctx.fill();
+    }
+  });
+  // ビネット
+  const vg=ctx.createRadialGradient(cw/2,chh/2,chh*.35,cw/2,chh/2,chh*.95);
+  vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.34)');
+  ctx.fillStyle=vg;ctx.fillRect(0,0,cw,chh);
+}
+
+/* ================= 診断・集計 ================= */
+function updateAll(){
+  const g=S.genre,W=S.room.W,D=S.room.D;
+  const total=W*D/1e6;
+  const kitA=S.items.filter(i=>i.type==='kitchen').reduce((s,i)=>s+i.w*i.h/1e6,0);
+  const stoA=S.items.filter(i=>i.type==='storage'||i.type==='wc').reduce((s,i)=>s+i.w*i.h/1e6,0);
+  const seats=S.items.reduce((s,i)=>s+seatsOf(i),0);
+  const darts=S.items.filter(i=>i.type==='dart').length;
+  const per=seats?(total-kitA-stoA)/seats:0;
+  const mon=Math.round(seats*.7*S.biz.turns*S.biz.price*26/1e4);
+  $('kSeats').innerHTML=seats+'<small>席</small>';
+  $('kPer').innerHTML=(seats?per.toFixed(2):'-')+'<small>㎡</small>';
+  $('kKit').innerHTML=(total?Math.round(kitA/total*100):0)+'<small>%</small>';
+  $('kDart').innerHTML=darts+'<small>面</small>';
+  $('kMon').innerHTML=(seats?mon:'-')+'<small>万円</small>';
+  // 診断
+  const N=[],push=(lv,t,d)=>N.push({lv,t,d});
+  const ov=findOverlaps();
+  if(ov.size)push('bad',`重なり・はみ出しが ${ov.size} 件`,'赤破線の什器が他と重なっているか、売場の外に出ています。位置を調整してください。');
+  if(seats===0)push('warn','席がありません','ツールバーから什器を追加してください。');
+  else{
+    if(per<g.seatArea*.8)push('bad',`1席あたり ${per.toFixed(2)}㎡（${g.n}の目安 ${g.seatArea}㎡）`,'詰め込みすぎです。体感が窮屈になり、単価とリピートに響きます。');
+    else if(per<g.seatArea)push('warn',`1席あたり ${per.toFixed(2)}㎡（目安 ${g.seatArea}㎡）`,'やや高密度。回転重視なら成立します。');
+    else push('ok',`1席あたり ${per.toFixed(2)}㎡`,`${g.n}の目安 ${g.seatArea}㎡を満たしています。`);
+  }
+  const kr=total?kitA/total:0;
+  if(kitA===0)push('warn','厨房ゾーンが未配置','「厨房ゾーン」を置くと面積比を診断できます。');
+  else if(kr<g.kitchenRatio*.85)push('warn',`厨房比率 ${Math.round(kr*100)}％（目安 ${Math.round(g.kitchenRatio*100)}％）`,'厨房が手狭です。提供スピードが頭打ちになる可能性。');
+  else push('ok',`厨房 ${kitA.toFixed(1)}㎡（${Math.round(kr*100)}％）`,'業態として妥当な厨房面積です。');
+  if(darts>0){
+    push('ok',`ダーツレーン ${darts}面`,'黄色線がスローライン（ボード面から2,440mm）。ライン後方に600mm以上の通行余地があるか、図で確認してください。レーン正面を横切る動線はNGです。');
+  }
+  if(!S.items.some(i=>i.type==='door'))push('warn','入口が未配置','「入口」を置くと動線の検討がしやすくなります。');
+  if(!S.items.some(i=>i.type==='wc'))push('warn','トイレが未配置','ビル共用トイレ前提なら問題ありませんが、営業許可の要件を保健所に確認してください。');
+  if(S.room.ceil<2.4)push('warn',`天井高 ${S.room.ceil}m`,'ダクト・空調の納まりが厳しくなります。');
+  if(S.style&&S.style.id==='industrial'&&S.room.ceil<2.8)push('warn','現し天井には高さ不足','2.8m未満なら天井は塗装仕上げにして、壁と什器で表現を。');
+  if(seats>=31)push('warn',`収容人員 ${seats}席 → 防火管理者が必要`,'収容人員30人超（従業員含む）は防火管理者の選任・届出が必要です。');
+  $('diagList').innerHTML=N.map(n=>`<li class="${n.lv}"><b>${n.lv==='ok'?'✓':n.lv==='warn'?'!':'×'}</b><span><b>${n.t}</b><br>${n.d}</span></li>`).join('');
+  $('genreTip').innerHTML=`<b>${g.n}のポイント：</b>${g.tip}`;
+  // 什器リスト
+  const cnt={};
+  S.items.forEach(i=>{cnt[i.type]=(cnt[i.type]||0)+1});
+  $('furnTable').innerHTML=`<table><tr><th>品目</th><th class="num">数量</th><th class="num">席数</th></tr>`+
+    Object.entries(cnt).map(([t,n])=>{
+      const ss=S.items.filter(i=>i.type===t).reduce((s,i)=>s+seatsOf(i),0);
+      return`<tr><td>${CAT[t].n}</td><td class="num">${n}</td><td class="num">${ss||'—'}</td></tr>`;
+    }).join('')+
+    `<tr><td><b>合計</b></td><td class="num"></td><td class="num"><b>${seats}席</b></td></tr></table>`;
+  $('salesTable').innerHTML=`<table>
+    <tr><td>客単価</td><td class="num">${S.biz.price.toLocaleString()} 円</td></tr>
+    <tr><td>回転数 / 日</td><td class="num">${S.biz.turns} 回</td></tr>
+    <tr><td>満席率（想定）</td><td class="num">70 ％</td></tr>
+    <tr><td>1日の売上</td><td class="num">${Math.round(seats*.7*S.biz.turns*S.biz.price).toLocaleString()} 円</td></tr>
+    <tr><td><b>月商（26日営業）</b></td><td class="num"><b>${mon} 万円</b></td></tr></table>
+    <p style="font-size:11.5px;color:var(--sub);margin:8px 0 0">${darts?'※ダーツはゲーム売上（1人あたり500〜1,500円/滞在）が別途上乗せになります。':''}</p>`;
+  autosave();
+}
+
+/* ================= テイストブロック ================= */
+function buildStyleUI(){
+  $('styleSel').innerHTML=STYLES.map(s=>`<option value="${s.id}" ${S.style&&s.id===S.style.id?'selected':''}>${s.ic} ${s.n}</option>`).join('');
+  renderStyleBlocks();
+}
+$('styleSel').onchange=e=>{
+  S.style=STYLES.find(s=>s.id===e.target.value);
+  renderStyleBlocks();renderEd();render3D();updateAll();
+};
+function renderStyleBlocks(){
+  const st_=S.style;if(!st_)return;
+  $('moodTitle').textContent=`素材ボード ─ ${st_.n}`;
+  $('moodBox').innerHTML=st_.mats.map(([k,v,d])=>`
+    <div class="mat"><div class="ch" style="background:${
+      k==='床'?st_.c.floor:(k==='壁'||k==='天井')?st_.c.wall:
+      (k.includes('椅子')||k.includes('ソファ'))?st_.c.fabric:
+      k==='金物'?st_.c.metal:st_.c.wood}"></div>
+    <div class="tx"><b>${k}｜${v}</b><span>${d}</span></div></div>`).join('');
+  $('palTable').innerHTML=`<table>`+
+    [['床',st_.c.floor],['壁',st_.c.wall],['天井',st_.c.ceil],['木部',st_.c.wood],['アクセント',st_.c.accent],['張地',st_.c.fabric],['金物',st_.c.metal]]
+    .map(([k,v])=>`<tr><td><span style="display:inline-block;width:20px;height:20px;border-radius:4px;background:${v};border:1px solid var(--line);vertical-align:-5px;margin-right:9px"></span>${k}</td><td class="num" style="font-family:monospace">${v.toUpperCase()}</td></tr>`).join('')+`</table>`;
+  $('lightTable').innerHTML=`<table>
+    <tr><td>色温度</td><td class="num">${st_.light.k}</td></tr>
+    <tr><td>主な器具</td><td class="num">${st_.light.fx}</td></tr>
+    <tr><td>推奨照度</td><td class="num">${st_.light.lx}</td></tr>
+    <tr><td>天井高</td><td class="num">${S.room.ceil} m</td></tr></table>
+    <p style="font-size:12px;color:var(--sub);margin:8px 0 0">ダーツエリアはボード面を狙って400lx程度のスポットを。客席全体は落として、レーンだけ明るくするとゲームに集中できます。</p>`;
+}
+
+renderSteps();
+renderProjLib();
+window.addEventListener('load',()=>{if($('calibArea')&&!$('calibArea').classList.contains('hide'))sizeCalib()});
+</script>
+</body>
+</html>

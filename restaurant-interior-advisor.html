@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>店舗インテリア相談 ─ 飲食店レイアウト＆内装プランナー</title>
+<style>
+:root{
+  --bg:#f6f4f1; --panel:#ffffff; --ink:#232025; --sub:#6f6a72;
+  --line:#e2ddd8; --accent:#1f6f5c; --accent-w:#e8f2ef; --warn:#c2571f; --bad:#b3352f;
+  --radius:14px;
+  --shadow:0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06);
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",system-ui,sans-serif;
+  line-height:1.7; -webkit-font-smoothing:antialiased;
+}
+header{
+  background:var(--panel); border-bottom:1px solid var(--line);
+  padding:18px 28px; position:sticky; top:0; z-index:20;
+}
+header h1{margin:0; font-size:18px; letter-spacing:.04em}
+header p{margin:2px 0 0; font-size:12px; color:var(--sub)}
+.wrap{max-width:1180px; margin:0 auto; padding:24px 20px 80px}
+
+/* ステップナビ */
+.steps{display:flex; gap:6px; margin-bottom:26px; flex-wrap:wrap}
+.steps div{
+  flex:1; min-width:120px; padding:9px 12px; font-size:12.5px; border-radius:10px;
+  background:var(--panel); border:1px solid var(--line); color:var(--sub); text-align:center;
+}
+.steps div.on{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:700}
+.steps div.done{background:var(--accent-w); border-color:#bcd9d1; color:var(--accent)}
+
+.card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:26px; box-shadow:var(--shadow)}
+h2.sec{font-size:17px; margin:0 0 4px}
+p.lead{margin:0 0 20px; font-size:13px; color:var(--sub)}
+
+/* 選択カード */
+.grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(168px,1fr)); gap:12px}
+.opt{
+  border:1.5px solid var(--line); border-radius:12px; padding:14px; cursor:pointer;
+  background:#fff; transition:.15s; text-align:left;
+}
+.opt:hover{border-color:#b9b2ab; transform:translateY(-1px)}
+.opt.sel{border-color:var(--accent); background:var(--accent-w); box-shadow:0 0 0 3px rgba(31,111,92,.10)}
+.opt .ic{font-size:24px; line-height:1}
+.opt .nm{font-weight:700; font-size:14px; margin-top:6px}
+.opt .ds{font-size:11.5px; color:var(--sub); margin-top:3px; line-height:1.5}
+.sw{display:flex; height:18px; border-radius:4px; overflow:hidden; margin-top:8px}
+.sw i{flex:1}
+
+/* フォーム */
+.form{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:16px 20px}
+label.f{display:block; font-size:12.5px; font-weight:700; margin-bottom:5px}
+label.f span{font-weight:400; color:var(--sub); font-size:11px}
+input[type=number],select{
+  width:100%; padding:9px 11px; border:1.5px solid var(--line); border-radius:9px;
+  font-size:14px; font-family:inherit; background:#fff; color:var(--ink);
+}
+input:focus,select:focus{outline:none; border-color:var(--accent)}
+.range-row{display:flex; align-items:center; gap:10px}
+input[type=range]{flex:1; accent-color:var(--accent)}
+.range-row b{font-size:13px; min-width:62px; text-align:right}
+.chk{display:flex; align-items:center; gap:8px; font-size:13px; margin-top:26px}
+.chk input{width:17px; height:17px; accent-color:var(--accent)}
+
+/* ボタン */
+.nav{display:flex; justify-content:space-between; margin-top:26px; gap:10px}
+button{font-family:inherit; cursor:pointer; border-radius:10px; font-size:14px; transition:.15s}
+.btn{padding:11px 26px; background:var(--accent); color:#fff; border:none; font-weight:700}
+.btn:hover{background:#18594a}
+.btn:disabled{background:#c9c4c0; cursor:not-allowed}
+.btn.ghost{background:#fff; color:var(--ink); border:1.5px solid var(--line); font-weight:400}
+.btn.ghost:hover{border-color:#b9b2ab; background:#faf9f8}
+
+/* 結果 */
+.result-head{display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:12px; margin-bottom:18px}
+.badges{display:flex; gap:8px; flex-wrap:wrap}
+.badge{background:var(--accent-w); color:var(--accent); border-radius:20px; padding:4px 13px; font-size:12px; font-weight:700}
+.kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:12px; margin:0 0 22px}
+.kpi{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px}
+.kpi .l{font-size:11px; color:var(--sub)}
+.kpi .v{font-size:24px; font-weight:700; letter-spacing:-.02em}
+.kpi .v small{font-size:12px; font-weight:400; color:var(--sub); margin-left:2px}
+
+.block{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:22px; margin-bottom:18px; box-shadow:var(--shadow)}
+.block h3{margin:0 0 14px; font-size:15px; display:flex; align-items:center; gap:8px}
+.block h3::before{content:''; width:4px; height:16px; background:var(--accent); border-radius:2px}
+
+svg.plan{width:100%; height:auto; display:block; background:#fbfaf9; border-radius:10px; border:1px solid var(--line)}
+svg.persp{width:100%; height:auto; display:block; border-radius:10px}
+
+table{width:100%; border-collapse:collapse; font-size:13px}
+th,td{padding:8px 10px; border-bottom:1px solid var(--line); text-align:left}
+th{font-size:11.5px; color:var(--sub); font-weight:700; background:#faf9f8}
+td.num{text-align:right; font-variant-numeric:tabular-nums}
+
+.notes{list-style:none; padding:0; margin:0}
+.notes li{padding:9px 12px; border-radius:9px; font-size:13px; margin-bottom:7px; display:flex; gap:9px; align-items:flex-start}
+.notes li.ok{background:var(--accent-w); color:#155246}
+.notes li.warn{background:#fdf1e6; color:var(--warn)}
+.notes li.bad{background:#fdeceb; color:var(--bad)}
+.notes li b{flex-shrink:0}
+
+.mood{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-top:14px}
+.mat{border:1px solid var(--line); border-radius:10px; overflow:hidden}
+.mat .ch{height:74px}
+.mat .tx{padding:9px 11px}
+.mat .tx b{font-size:12.5px; display:block}
+.mat .tx span{font-size:11px; color:var(--sub); line-height:1.45; display:block; margin-top:2px}
+
+.legend{display:flex; gap:16px; flex-wrap:wrap; font-size:11.5px; color:var(--sub); margin-top:10px}
+.legend i{display:inline-block; width:11px; height:11px; border-radius:2px; margin-right:5px; vertical-align:-1px}
+.two{display:grid; grid-template-columns:1fr 1fr; gap:18px}
+@media(max-width:860px){.two{grid-template-columns:1fr}}
+.hide{display:none}
+@media print{
+  header,.steps,.nav,.noprint{display:none}
+  body{background:#fff}
+  .block,.card{break-inside:avoid; box-shadow:none}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>店舗インテリア相談</h1>
+  <p>飲食店のレイアウト・内装プランを、条件入力から自動作成します</p>
+</header>
+
+<div class="wrap">
+  <div class="steps" id="steps"></div>
+
+  <!-- STEP 1 -->
+  <section class="card" id="s1">
+    <h2 class="sec">1. 業態を選んでください</h2>
+    <p class="lead">業態によって、厨房に必要な面積・カウンター席の比率・席あたりの広さの目安が変わります。</p>
+    <div class="grid" id="genreGrid"></div>
+    <div class="nav"><span></span><button class="btn" id="n1" disabled>次へ</button></div>
+  </section>
+
+  <!-- STEP 2 -->
+  <section class="card hide" id="s2">
+    <h2 class="sec">2. 物件の条件を入力してください</h2>
+    <p class="lead">わかる範囲で構いません。図面がなければ、歩測でおおよその間口・奥行を入れてください。</p>
+    <div class="form">
+      <div>
+        <label class="f">間口（正面の幅） <span>m</span></label>
+        <div class="range-row"><input type="range" id="width" min="2.5" max="15" step="0.1" value="6"><b id="widthV"></b></div>
+      </div>
+      <div>
+        <label class="f">奥行 <span>m</span></label>
+        <div class="range-row"><input type="range" id="depth" min="3" max="20" step="0.1" value="9"><b id="depthV"></b></div>
+      </div>
+      <div>
+        <label class="f">天井高 <span>m</span></label>
+        <div class="range-row"><input type="range" id="ceil" min="2.2" max="4.5" step="0.05" value="2.7"><b id="ceilV"></b></div>
+      </div>
+      <div>
+        <label class="f">主通路の幅 <span>mm・配膳のしやすさに直結</span></label>
+        <div class="range-row"><input type="range" id="aisle" min="600" max="1400" step="50" value="900"><b id="aisleV"></b></div>
+      </div>
+      <div>
+        <label class="f">厨房の位置</label>
+        <select id="kpos">
+          <option value="back">奥（標準）</option>
+          <option value="left">左サイド（細長い物件向き）</option>
+          <option value="right">右サイド（細長い物件向き）</option>
+        </select>
+      </div>
+      <div>
+        <label class="f">想定客単価 <span>円</span></label>
+        <input type="number" id="price" min="300" max="30000" step="100" value="1100">
+      </div>
+      <div>
+        <label class="f">1日の想定回転数 <span>回</span></label>
+        <input type="number" id="turns" min="0.5" max="10" step="0.1" value="3">
+      </div>
+      <div><label class="chk"><input type="checkbox" id="toilet" checked>店内にトイレを設ける</label></div>
+    </div>
+    <div class="nav"><button class="btn ghost" data-back="1">戻る</button><button class="btn" id="n2">次へ</button></div>
+  </section>
+
+  <!-- STEP 3 -->
+  <section class="card hide" id="s3">
+    <h2 class="sec">3. 内装のテイストを選んでください</h2>
+    <p class="lead">選んだテイストに応じて、配色・素材・照明の提案内容が変わります。</p>
+    <div class="grid" id="styleGrid"></div>
+    <div class="nav"><button class="btn ghost" data-back="2">戻る</button><button class="btn" id="n3" disabled>プランを作成</button></div>
+  </section>
+
+  <!-- STEP 4 -->
+  <section class="hide" id="s4"></section>
+</div>
+
+<script>
+/* ============================================================
+   業態マスタ
+   kitchenRatio : 全体面積に対する厨房比率の目安
+   counterRatio : カウンター席をどれだけ主体にするか(0-1)
+   mix          : テーブルの構成比 (2人掛け / 4人掛け)
+   seatArea     : 1席あたりの推奨面積(㎡) ─ 下回ると窮屈
+   ============================================================ */
+const GENRES=[
+ {id:'cafe',  n:'カフェ',        ic:'☕', kitchenRatio:.22, counterRatio:.22, mix:{t2:.65,t4:.35}, turns:3.0, price:1100, seatArea:1.5,
+  tip:'滞在が長く回転が読みにくい業態。席間のゆとりと客席の電源計画が満足度を左右します。'},
+ {id:'izakaya', n:'居酒屋',      ic:'🍶', kitchenRatio:.28, counterRatio:.25, mix:{t2:.3,t4:.7}, turns:1.8, price:3500, seatArea:1.3,
+  tip:'4名卓を基本に、連結して6〜8名の宴会に対応できる可動テーブルが有効です。'},
+ {id:'ramen', n:'ラーメン',      ic:'🍜', kitchenRatio:.34, counterRatio:.75, mix:{t2:.5,t4:.5}, turns:5.0, price:1000, seatArea:1.0,
+  tip:'カウンター主体で回転を最大化。券売機と待ち客の立ち位置を入口側に確保します。'},
+ {id:'teishoku', n:'定食・食堂', ic:'🍚', kitchenRatio:.28, counterRatio:.35, mix:{t2:.45,t4:.55}, turns:4.0, price:950, seatArea:1.2,
+  tip:'昼のピークに全席が同時に動きます。配膳動線を最短にすることが最優先。'},
+ {id:'bistro', n:'ビストロ・洋食',ic:'🍷', kitchenRatio:.30, counterRatio:.15, mix:{t2:.55,t4:.45}, turns:2.5, price:3200, seatArea:1.7,
+  tip:'2名卓を主体に、繁忙時は連結して4名対応。ゆったりした席間が単価を支えます。'},
+ {id:'yakiniku', n:'焼肉',       ic:'🥩', kitchenRatio:.25, counterRatio:.05, mix:{t2:.25,t4:.75}, turns:2.2, price:4500, seatArea:2.0,
+  tip:'各卓のロースター排気ダクトが必須。設備費が跳ね上がるため席数計画は慎重に。'},
+ {id:'sushi', n:'寿司・和食',    ic:'🍣', kitchenRatio:.30, counterRatio:.55, mix:{t2:.4,t4:.6}, turns:2.5, price:5000, seatArea:1.7,
+  tip:'つけ場カウンターが主役。客の視線が集まるため、背面の見せ方に投資する価値あり。'},
+ {id:'bar',   n:'バー',          ic:'🍸', kitchenRatio:.18, counterRatio:.60, mix:{t2:.7,t4:.3}, turns:1.5, price:3000, seatArea:1.4,
+  tip:'照度を落とすぶん、手元とボトル棚の明かりで見せ場をつくります。'}
+];
+
+/* ============================================================
+   内装テイスト マスタ
+   ============================================================ */
+const STYLES=[
+ {id:'natural', n:'ナチュラル木質', ic:'🌿',
+  ds:'明るい無垢材とリネン。長居しやすく、幅広い客層に。',
+  c:{floor:'#c9a87c', wall:'#efe7db', ceil:'#f6f1e8', wood:'#b08655', accent:'#6f8f6a', fabric:'#d8cbb4', metal:'#9a8f7f'},
+  light:{k:'2700K 電球色', fx:'木シェードのペンダント＋間接照明', lx:'客席 250lx / 手元 500lx'},
+  mats:[['床','オーク調フロアタイル','傷が目立ちにくく、水濡れにも強い。'],
+        ['壁','漆喰調塗り壁','マットな質感で照明の陰影が出る。部分的に木羽目板。'],
+        ['天板','タモ集成材＋ウレタン塗装','熱い皿を置いても白化しにくい仕様に。'],
+        ['椅子','木脚＋ファブリック座','座り心地重視。座面は張替え可能なものを。']],
+  fit:['cafe','bistro','teishoku']},
+ {id:'industrial', n:'インダストリアル', ic:'🔩',
+  ds:'黒鉄・モルタル・現し天井。天井高がある物件で映える。',
+  c:{floor:'#8c8880', wall:'#5d5b58', ceil:'#3a3937', wood:'#7a5c3f', accent:'#c96f2c', fabric:'#4a4744', metal:'#2f2e2c'},
+  light:{k:'2400K 電球色（低め）', fx:'黒スチールの裸電球ペンダント＋スポットライト', lx:'客席 150lx / 手元 400lx'},
+  mats:[['床','モルタル金鏝仕上げ','継ぎ目がなく清掃性が高い。ひび割れは味と割り切る。'],
+        ['壁','コンクリート打ち放し調＋黒鉄','部分的にレンガタイルで温度感を足す。'],
+        ['天井','躯体現し（配管・配線をあえて見せる）','天井高2.8m以上でないと圧迫感が出る。'],
+        ['椅子','黒スチール脚＋木座面','スタッキング可能なものだと清掃が楽。']],
+  fit:['bar','izakaya','bistro']},
+ {id:'wamodern', n:'和モダン', ic:'🎎',
+  ds:'墨色と生成り、格子。落ち着いた単価帯の店に。',
+  c:{floor:'#4a423a', wall:'#e6ded0', ceil:'#d9cfbe', wood:'#6b5340', accent:'#7d2f2a', fabric:'#3c3a37', metal:'#8a7d63'},
+  light:{k:'2700K 電球色', fx:'和紙シェード＋足元の行灯照明', lx:'客席 180lx / 手元 450lx'},
+  mats:[['床','濃色フローリング／一部たたき風タイル','汚れが目立ちにくく、格式が出る。'],
+        ['壁','聚楽調塗り壁＋木格子','格子は空間の仕切りにも使えて一石二鳥。'],
+        ['カウンター','一枚板（欅・栃）','店の顔になる投資箇所。反り止めの加工は必須。'],
+        ['椅子','座面低めの木製チェア','和の落ち着きは座面高さでも演出できる。']],
+  fit:['sushi','izakaya','teishoku']},
+ {id:'nordic', n:'北欧', ic:'❄️',
+  ds:'白木とやわらかい配色。昼の明るさが武器の物件に。',
+  c:{floor:'#ddc9a8', wall:'#f7f5f1', ceil:'#ffffff', wood:'#d8bd94', accent:'#5b7f96', fabric:'#c5d3d6', metal:'#b8b2a8'},
+  light:{k:'3000K 温白色', fx:'白系ドーム型ペンダント＋均一なベース照明', lx:'客席 350lx / 手元 500lx'},
+  mats:[['床','ホワイトオーク調フロア','明るく空間が広く見える。'],
+        ['壁','白系クロス／塗装','写真映えする。汚れやすいので腰壁を検討。'],
+        ['天板','ホワイトアッシュ突板','軽快な印象。角は面取りして欠けを防ぐ。'],
+        ['椅子','明るい木脚＋成形合板','軽く動かしやすい。レイアウト変更に強い。']],
+  fit:['cafe','bistro']},
+ {id:'retro', n:'レトロ喫茶', ic:'🥃',
+  ds:'えんじ色のソファ、真鍮、モザイクタイル。',
+  c:{floor:'#6d4b35', wall:'#d8c9a8', ceil:'#e6d9bd', wood:'#5c3b26', accent:'#8f2f34', fabric:'#7d2b30', metal:'#b08d4f'},
+  light:{k:'2400K 電球色', fx:'乳白ガラスのブラケット＋真鍮ペンダント', lx:'客席 160lx / 手元 400lx'},
+  mats:[['床','モザイクタイル／市松柄','入口まわりだけでも効果が大きい。'],
+        ['壁','木羽目板＋腰壁','年数が経つほど雰囲気が出る素材。'],
+        ['ソファ','えんじ色の合皮ベンチ','クリーニングしやすい合皮が実務的。'],
+        ['金物','真鍮（無垢・クリア塗装なし）','経年で色が育つ。定期的な磨きが必要。']],
+  fit:['cafe','bar','teishoku']},
+ {id:'mono', n:'モノトーンモダン', ic:'⬛',
+  ds:'黒・白・グレー。料理の色が最も引き立つ。',
+  c:{floor:'#3f3f42', wall:'#ececeb', ceil:'#f4f4f3', wood:'#55524e', accent:'#a5a5a3', fabric:'#2b2b2d', metal:'#7c7c7e'},
+  light:{k:'3000K 温白色＋料理へのスポット', fx:'黒筒のダウンライト＋卓上スポット', lx:'客席 200lx / 卓上 600lx'},
+  mats:[['床','濃グレータイル','高級感と清掃性を両立。目地は濃色で。'],
+        ['壁','白マット塗装＋黒見切り','余白を活かす。アートを1点だけ置くと効く。'],
+        ['天板','セラミック／メラミン（黒）','熱・傷に強く、業務利用に最適。'],
+        ['椅子','黒スチール＋レザー座面','拭き取り清掃が一瞬で済む。']],
+  fit:['bistro','sushi','bar','yakiniku']}
+];
+
+/* ============================================================
+   寸法定数（mm）— 飲食店の実務寸法
+   ============================================================ */
+const DIM={
+  T4:{w:1200,d:750,seats:4,name:'4名テーブル'},
+  T2:{w:700, d:700,seats:2,name:'2名テーブル'},
+  chairPull:550,   // 椅子の引きしろ
+  tableGap:450,    // 卓と卓の側方クリアランス
+  counterTop:500,  // カウンター天板の奥行
+  stoolZone:750,   // スツールと通行のゾーン
+  seatPitch:600,   // カウンター1席あたりの幅
+  frontZone:900,   // 入口まわりの風除・待合ゾーン
+  toiletW:1700, toiletD:1600,
+  registerW:1400, registerD:600,
+  kitchenMin:2200
+};
+
+const state={genre:null,style:null,step:1};
+
+/* ---------- 初期描画 ---------- */
+const $=id=>document.getElementById(id);
+function renderSteps(){
+  const names=['業態','物件条件','テイスト','プラン'];
+  $('steps').innerHTML=names.map((n,i)=>
+    `<div class="${state.step===i+1?'on':(state.step>i+1?'done':'')}">${i+1}. ${n}</div>`).join('');
+}
+function goto(n){
+  state.step=n;
+  [1,2,3,4].forEach(i=>$('s'+i).classList.toggle('hide',i!==n));
+  renderSteps(); window.scrollTo({top:0,behavior:'smooth'});
+}
+$('genreGrid').innerHTML=GENRES.map(g=>
+  `<button class="opt" data-g="${g.id}"><div class="ic">${g.ic}</div><div class="nm">${g.n}</div>
+   <div class="ds">厨房比 ${Math.round(g.kitchenRatio*100)}％／1席 ${g.seatArea}㎡目安</div></button>`).join('');
+$('styleGrid').innerHTML=STYLES.map(s=>
+  `<button class="opt" data-s="${s.id}"><div class="ic">${s.ic}</div><div class="nm">${s.n}</div>
+   <div class="ds">${s.ds}</div>
+   <div class="sw"><i style="background:${s.c.floor}"></i><i style="background:${s.c.wall}"></i><i style="background:${s.c.wood}"></i><i style="background:${s.c.accent}"></i><i style="background:${s.c.fabric}"></i></div>
+   </button>`).join('');
+
+$('genreGrid').onclick=e=>{
+  const b=e.target.closest('[data-g]'); if(!b)return;
+  document.querySelectorAll('#genreGrid .opt').forEach(o=>o.classList.remove('sel'));
+  b.classList.add('sel'); state.genre=GENRES.find(g=>g.id===b.dataset.g);
+  $('price').value=state.genre.price; $('turns').value=state.genre.turns;
+  $('n1').disabled=false;
+};
+$('styleGrid').onclick=e=>{
+  const b=e.target.closest('[data-s]'); if(!b)return;
+  document.querySelectorAll('#styleGrid .opt').forEach(o=>o.classList.remove('sel'));
+  b.classList.add('sel'); state.style=STYLES.find(s=>s.id===b.dataset.s);
+  $('n3').disabled=false;
+};
+[['width','m'],['depth','m'],['ceil','m'],['aisle','mm']].forEach(([id,u])=>{
+  const el=$(id),out=$(id+'V');
+  const upd=()=>out.textContent=el.value+u;
+  el.addEventListener('input',upd); upd();
+});
+$('n1').onclick=()=>goto(2);
+$('n2').onclick=()=>goto(3);
+$('n3').onclick=()=>{buildPlan();goto(4)};
+document.querySelectorAll('[data-back]').forEach(b=>b.onclick=()=>goto(+b.dataset.back));
+
+/* ============================================================
+   レイアウト自動生成
+   ============================================================ */
+function readCfg(){
+  return{
+    W:+$('width').value*1000, D:+$('depth').value*1000, ceil:+$('ceil').value,
+    aisle:+$('aisle').value, kpos:$('kpos').value,
+    price:+$('price').value, turns:+$('turns').value, toilet:$('toilet').checked
+  };
+}
+
+// 障害物を差し引いて、そのバンドで使えるX区間を返す
+function segments(x0,x1,y0,y1,obstacles){
+  let segs=[[x0,x1]];
+  obstacles.forEach(o=>{
+    if(o.y+o.h<=y0||o.y>=y1) return;           // Y方向に重ならない
+    const ox0=o.x-DIM.tableGap, ox1=o.x+o.w+DIM.tableGap;
+    const next=[];
+    segs.forEach(([a,b])=>{
+      if(ox1<=a||ox0>=b){next.push([a,b]);return}
+      if(ox0>a) next.push([a,Math.min(ox0,b)]);
+      if(ox1<b) next.push([Math.max(ox1,a),b]);
+    });
+    segs=next;
+  });
+  return segs.filter(([a,b])=>b-a>=DIM.T2.w);
+}
+
+function computeLayout(cfg,g){
+  const {W,D}=cfg;
+  const items=[],obstacles=[];
+  let seatX0=0,seatX1=W,seatY0=0,seatY1=D-DIM.frontZone;
+
+  // --- 厨房 ---
+  const targetKitchenArea=(W*D)*g.kitchenRatio;
+  let kitchen;
+  if(cfg.kpos==='back'){
+    const kd=Math.min(Math.max(targetKitchenArea/W,DIM.kitchenMin),D*.45);
+    kitchen={type:'kitchen',x:0,y:0,w:W,h:kd}; seatY0=kd;
+  }else{
+    const kw=Math.min(Math.max(targetKitchenArea/D,DIM.kitchenMin),W*.45);
+    if(cfg.kpos==='left'){kitchen={type:'kitchen',x:0,y:0,w:kw,h:D}; seatX0=kw}
+    else{kitchen={type:'kitchen',x:W-kw,y:0,w:kw,h:D}; seatX1=W-kw}
+  }
+  items.push(kitchen);
+
+  // --- トイレ・レジ（客席側の障害物として扱う）---
+  if(cfg.toilet){
+    const t={type:'toilet',x:seatX1-DIM.toiletW,y:seatY0,w:DIM.toiletW,h:DIM.toiletD,label:'WC'};
+    if(t.x>=seatX0&&t.h<seatY1-seatY0){items.push(t);obstacles.push(t)}
+  }
+  const reg={type:'register',x:seatX1-DIM.registerW,y:seatY1-DIM.registerD,w:DIM.registerW,h:DIM.registerD,label:'レジ'};
+  if(reg.x>=seatX0){items.push(reg);obstacles.push(reg)}
+
+  let counterSeats=0,tableSeats=0;
+  const furn={T4:0,T2:0};
+
+  // --- カウンター席（厨房前）---
+  if(g.counterRatio>0.1){
+    const bandY = cfg.kpos==='back' ? seatY0 : seatY0;
+    const bandH = DIM.counterTop+DIM.stoolZone;
+    let avail;
+    if(cfg.kpos==='back'){
+      const segs=segments(seatX0,seatX1,bandY,bandY+bandH,obstacles);
+      avail=segs.length?segs.reduce((a,b)=>(b[1]-b[0])>(a[1]-a[0])?b:a):null;
+    }else{
+      avail=[seatX0,seatX0+Math.min(seatX1-seatX0,DIM.counterTop)]; // サイド厨房時は壁付け縦カウンター
+    }
+    if(cfg.kpos==='back'&&avail){
+      const len=Math.min(avail[1]-avail[0],(avail[1]-avail[0])*Math.min(1,g.counterRatio*1.6));
+      if(len>=1800){
+        const c={type:'counter',x:avail[0],y:bandY,w:len,h:DIM.counterTop,
+                 seats:Math.floor(len/DIM.seatPitch)};
+        counterSeats=c.seats; items.push(c);
+        obstacles.push({x:c.x,y:c.y,w:c.w,h:bandH});
+        seatY0=bandY+bandH;
+      }
+    }else if(cfg.kpos!=='back'){
+      const len=Math.min(D-DIM.frontZone,(D-DIM.frontZone)*Math.min(1,g.counterRatio*1.6));
+      if(len>=1800){
+        const cx=cfg.kpos==='left'?seatX0:seatX1-DIM.counterTop;
+        const c={type:'counter',x:cx,y:0,w:DIM.counterTop,h:len,vertical:true,
+                 seats:Math.floor(len/DIM.seatPitch)};
+        counterSeats=c.seats; items.push(c);
+        if(cfg.kpos==='left') seatX0+=DIM.counterTop+DIM.stoolZone;
+        else seatX1-=DIM.counterTop+DIM.stoolZone;
+      }
+    }
+  }
+
+  // --- テーブル席をバンドで敷き詰める ---
+  const bandH=DIM.T4.d+DIM.chairPull*2;   // 750 + 550×2 = 1850
+  let y=seatY0;
+  while(seatY1-y>=bandH){
+    segments(seatX0,seatX1,y,y+bandH,obstacles).forEach(([a,b])=>{
+      let x=a;
+      while(b-x>=DIM.T2.w){
+        const wantT4 = (furn.T4+furn.T2)===0 ? g.mix.t4>=g.mix.t2
+                     : (furn.T4/(furn.T4+furn.T2)) < g.mix.t4;
+        const t = (wantT4 && b-x>=DIM.T4.w) ? DIM.T4 : DIM.T2;
+        items.push({type:'table',x:x,y:y+DIM.chairPull,w:t.w,h:t.d,seats:t.seats,kind:t===DIM.T4?'T4':'T2'});
+        furn[t===DIM.T4?'T4':'T2']++; tableSeats+=t.seats;
+        x+=t.w+DIM.tableGap;
+      }
+    });
+    y+=bandH+cfg.aisle;
+  }
+
+  const seats=counterSeats+tableSeats;
+  const totalArea=W*D/1e6;
+  const kitchenArea=kitchen.w*kitchen.h/1e6;
+  return{items,kitchen,seats,counterSeats,tableSeats,furn,totalArea,kitchenArea,
+         seatArea:seats?(totalArea-kitchenArea)/seats:0,seatY0,seatY1,seatX0,seatX1};
+}
+
+/* ============================================================
+   平面図SVG
+   ============================================================ */
+function drawPlan(cfg,L,st){
+  const pad=70, {W,D}=cfg;
+  const sc=Math.min(880/W,620/D);
+  const w=W*sc, h=D*sc;
+  const c=st.c;
+  const X=v=>pad+v*sc, Y=v=>pad+v*sc;
+  let s=`<svg class="plan" viewBox="0 0 ${w+pad*2} ${h+pad*2}" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="kh" width="8" height="8" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="8" stroke="#c8c2ba" stroke-width="1.4"/></pattern>
+  </defs>
+  <rect x="${pad}" y="${pad}" width="${w}" height="${h}" fill="${c.wall}" opacity=".28"/>`;
+
+  L.items.forEach(it=>{
+    const x=X(it.x),y=Y(it.y),iw=it.w*sc,ih=it.h*sc;
+    if(it.type==='kitchen'){
+      s+=`<rect x="${x}" y="${y}" width="${iw}" height="${ih}" fill="url(#kh)" stroke="#8d8880" stroke-width="1.5"/>
+      <text x="${x+iw/2}" y="${y+ih/2}" text-anchor="middle" font-size="15" font-weight="700" fill="#5c5852">厨房 ${(it.w*it.h/1e6).toFixed(1)}㎡</text>`;
+    }else if(it.type==='toilet'){
+      s+=`<rect x="${x}" y="${y}" width="${iw}" height="${ih}" fill="#fff" stroke="#8d8880" stroke-width="1.5"/>
+      <text x="${x+iw/2}" y="${y+ih/2+4}" text-anchor="middle" font-size="13" fill="#5c5852">WC</text>`;
+    }else if(it.type==='register'){
+      s+=`<rect x="${x}" y="${y}" width="${iw}" height="${ih}" fill="${c.wood}" opacity=".8" stroke="#5c5852"/>
+      <text x="${x+iw/2}" y="${y+ih/2+4}" text-anchor="middle" font-size="11" fill="#fff">レジ</text>`;
+    }else if(it.type==='counter'){
+      s+=`<rect x="${x}" y="${y}" width="${iw}" height="${ih}" fill="${c.wood}" stroke="#4a453f" stroke-width="1.5" rx="2"/>`;
+      // スツール
+      for(let i=0;i<it.seats;i++){
+        if(it.vertical){
+          const sy=Y(it.y+DIM.seatPitch*(i+.5));
+          const sx=cfg.kpos==='left'? x+iw+16 : x-16;
+          s+=`<circle cx="${sx}" cy="${sy}" r="${9}" fill="${c.fabric}" stroke="#4a453f"/>`;
+        }else{
+          const sx=X(it.x+DIM.seatPitch*(i+.5));
+          s+=`<circle cx="${sx}" cy="${y+ih+16}" r="9" fill="${c.fabric}" stroke="#4a453f"/>`;
+        }
+      }
+      s+=`<text x="${x+iw/2}" y="${y+ih/2+4}" text-anchor="middle" font-size="11" fill="#fff">カウンター ${it.seats}席</text>`;
+    }else if(it.type==='table'){
+      s+=`<rect x="${x}" y="${y}" width="${iw}" height="${ih}" fill="${c.wood}" stroke="#4a453f" stroke-width="1.3" rx="2"/>`;
+      const n=it.seats/2;
+      for(let i=0;i<n;i++){
+        const cx=x+iw*(i+.5)/n;
+        s+=`<circle cx="${cx}" cy="${y-13}" r="9.5" fill="${c.fabric}" stroke="#4a453f"/>
+            <circle cx="${cx}" cy="${y+ih+13}" r="9.5" fill="${c.fabric}" stroke="#4a453f"/>`;
+      }
+    }
+  });
+
+  // 壁・入口
+  s+=`<rect x="${pad}" y="${pad}" width="${w}" height="${h}" fill="none" stroke="#3a3733" stroke-width="4"/>`;
+  const doorW=Math.min(1000,W*.3)*sc, dx=pad+w*.12;
+  s+=`<rect x="${dx}" y="${pad+h-3}" width="${doorW}" height="6" fill="${st.c.accent}"/>
+      <path d="M${dx} ${pad+h} l0 ${34}" stroke="${st.c.accent}" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <path d="M${dx+doorW/2} ${pad+h+40} l0 -26 m-7 9 l7 -9 l7 9" stroke="${st.c.accent}" stroke-width="2.2" fill="none"/>
+      <text x="${dx+doorW/2}" y="${pad+h+56}" text-anchor="middle" font-size="12" fill="${st.c.accent}" font-weight="700">入口</text>`;
+
+  // 寸法線
+  s+=`<g stroke="#8d8880" stroke-width="1" font-size="12" fill="#5c5852">
+    <line x1="${pad}" y1="${pad-26}" x2="${pad+w}" y2="${pad-26}"/>
+    <line x1="${pad}" y1="${pad-31}" x2="${pad}" y2="${pad-21}"/>
+    <line x1="${pad+w}" y1="${pad-31}" x2="${pad+w}" y2="${pad-21}"/>
+    <text x="${pad+w/2}" y="${pad-32}" text-anchor="middle" font-weight="700">間口 ${(W/1000).toFixed(1)} m</text>
+    <line x1="${pad-26}" y1="${pad}" x2="${pad-26}" y2="${pad+h}"/>
+    <line x1="${pad-31}" y1="${pad}" x2="${pad-21}" y2="${pad}"/>
+    <line x1="${pad-31}" y1="${pad+h}" x2="${pad-21}" y2="${pad+h}"/>
+    <text x="${pad-34}" y="${pad+h/2}" text-anchor="middle" font-weight="700" transform="rotate(-90 ${pad-34} ${pad+h/2})">奥行 ${(D/1000).toFixed(1)} m</text>
+  </g>`;
+  return s+'</svg>';
+}
+
+/* ============================================================
+   内装イメージ（一点透視のスケッチ）
+   ============================================================ */
+function drawPerspective(st,cfg,L){
+  const c=st.c, hi=cfg.ceil>=3.0;
+  const bw=[250,150,550,310];            // 奥壁 x0,y0,x1,y1
+  const [bx0,by0,bx1,by1]=bw;
+  let s=`<svg class="persp" viewBox="0 0 800 460" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="fl" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${c.floor}" stop-opacity=".75"/><stop offset="1" stop-color="${c.floor}"/></linearGradient>
+    <linearGradient id="wl" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="${c.wall}" stop-opacity=".55"/><stop offset="1" stop-color="${c.wall}"/></linearGradient>
+    <radialGradient id="glow"><stop offset="0" stop-color="#fff3d6" stop-opacity=".85"/><stop offset="1" stop-color="#fff3d6" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="800" height="460" fill="${c.wall}"/>
+  <polygon points="0,0 800,0 ${bx1},${by0} ${bx0},${by0}" fill="${c.ceil}"/>
+  <polygon points="0,460 800,460 ${bx1},${by1} ${bx0},${by1}" fill="url(#fl)"/>
+  <polygon points="0,0 ${bx0},${by0} ${bx0},${by1} 0,460" fill="url(#wl)"/>
+  <polygon points="800,0 ${bx1},${by0} ${bx1},${by1} 800,460" fill="url(#wl)"/>
+  <rect x="${bx0}" y="${by0}" width="${bx1-bx0}" height="${by1-by0}" fill="${c.wall}"/>`;
+
+  // 床の目地（透視方向）
+  for(let i=1;i<8;i++){
+    const t=i/8;
+    s+=`<line x1="${800*t}" y1="460" x2="${bx0+(bx1-bx0)*t}" y2="${by1}" stroke="${c.ceil}" stroke-width="1" opacity=".18"/>`;
+  }
+  // 奥壁のバックバー／棚
+  s+=`<rect x="${bx0+22}" y="${by0+34}" width="${bx1-bx0-44}" height="${by1-by0-90}" fill="${c.wood}" opacity=".9"/>`;
+  for(let i=0;i<3;i++)
+    s+=`<line x1="${bx0+22}" y1="${by0+58+i*26}" x2="${bx1-22}" y2="${by0+58+i*26}" stroke="${c.ceil}" stroke-width="1.6" opacity=".55"/>`;
+  // 棚のボトル・器
+  for(let i=0;i<11;i++){
+    const x=bx0+34+i*22, hgt=8+((i*37)%14);
+    s+=`<rect x="${x}" y="${by0+50-hgt+8}" width="7" height="${hgt}" fill="${c.accent}" opacity=".8"/>`;
+  }
+  // カウンター
+  if(L.counterSeats>0){
+    s+=`<polygon points="${bx0-30},${by1+18} ${bx1+30},${by1+18} ${bx1+52},${by1+42} ${bx0-52},${by1+42}" fill="${c.wood}"/>
+        <polygon points="${bx0-52},${by1+42} ${bx1+52},${by1+42} ${bx1+52},${by1+58} ${bx0-52},${by1+58}" fill="${c.wood}" opacity=".7"/>`;
+    for(let i=0;i<5;i++){
+      const x=bx0-20+i*(bx1-bx0+40)/4.6;
+      s+=`<rect x="${x}" y="${by1+66}" width="26" height="11" rx="4" fill="${c.fabric}"/>
+          <rect x="${x+10}" y="${by1+77}" width="6" height="26" fill="${c.metal}"/>`;
+    }
+  }
+  // ペンダント照明
+  const lights=[[400,0],[280,-14],[520,-14]];
+  lights.forEach(([x,dy])=>{
+    const ly=118+dy;
+    s+=`<line x1="${x}" y1="0" x2="${x}" y2="${ly}" stroke="${c.metal}" stroke-width="2"/>
+        <path d="M${x-24} ${ly+22} L${x-10} ${ly} L${x+10} ${ly} L${x+24} ${ly+22} Z" fill="${c.metal}"/>
+        <ellipse cx="${x}" cy="${ly+24}" rx="24" ry="5" fill="#ffe9b8"/>
+        <circle cx="${x}" cy="${ly+30}" r="60" fill="url(#glow)"/>`;
+  });
+  // 手前のテーブル席
+  const tables=[[120,352,150],[640,352,150],[380,398,190]];
+  tables.forEach(([x,y,tw])=>{
+    s+=`<ellipse cx="${x}" cy="${y+14}" rx="${tw/2}" ry="${tw/9}" fill="#000" opacity=".10"/>
+        <rect x="${x-tw/2}" y="${y}" width="${tw}" height="13" rx="3" fill="${c.wood}"/>
+        <rect x="${x-6}" y="${y+13}" width="12" height="34" fill="${c.metal}"/>
+        <rect x="${x-tw/4}" y="${y+47}" width="${tw/2}" height="7" rx="3" fill="${c.metal}"/>
+        <rect x="${x-tw/2-26}" y="${y-30}" width="22" height="30" rx="5" fill="${c.fabric}"/>
+        <rect x="${x+tw/2+4}" y="${y-30}" width="22" height="30" rx="5" fill="${c.fabric}"/>`;
+  });
+  // 天井（現し／高天井の表現）
+  if(st.id==='industrial'||hi){
+    s+=`<line x1="${bx0+20}" y1="${by0-46}" x2="${bx1-20}" y2="${by0-46}" stroke="${c.metal}" stroke-width="5" opacity=".55"/>
+        <line x1="${bx0+40}" y1="${by0-70}" x2="${bx1-40}" y2="${by0-70}" stroke="${c.metal}" stroke-width="3" opacity=".4"/>`;
+  }
+  // アクセントウォール
+  s+=`<rect x="0" y="0" width="7" height="460" fill="${c.accent}" opacity=".9"/>
+      <text x="24" y="440" font-size="12" fill="${c.ink||'#fff'}" opacity=".0">.</text>`;
+  return s+'</svg>';
+}
+
+/* ============================================================
+   診断コメント
+   ============================================================ */
+function diagnose(cfg,L,g,st){
+  const N=[];
+  const push=(lv,t,d)=>N.push({lv,t,d});
+  if(L.seats===0){
+    push('bad','席が配置できません','間口・奥行に対して厨房と通路が空間を使い切っています。通路幅を狭めるか、カウンター主体の業態を検討してください。');
+    return N;
+  }
+  if(L.seatArea<g.seatArea*0.8)
+    push('bad',`1席あたり ${L.seatArea.toFixed(2)}㎡（${g.n}の目安 ${g.seatArea}㎡）`,'詰め込みすぎです。客の体感が窮屈になり、単価とリピートが落ちます。席数を減らすか通路計画を見直してください。');
+  else if(L.seatArea<g.seatArea)
+    push('warn',`1席あたり ${L.seatArea.toFixed(2)}㎡（目安 ${g.seatArea}㎡）`,'やや高密度です。回転重視なら成立しますが、滞在型の営業には不向きです。');
+  else
+    push('ok',`1席あたり ${L.seatArea.toFixed(2)}㎡`,`${g.n}の目安 ${g.seatArea}㎡を満たしています。客席のゆとりは確保できています。`);
+
+  if(cfg.aisle<750)
+    push('bad',`主通路 ${cfg.aisle}mm`,'配膳中のスタッフと客がすれ違えません。最低750mm、できれば900mmを確保してください。車椅子対応には800mm以上が必要です。');
+  else if(cfg.aisle<900)
+    push('warn',`主通路 ${cfg.aisle}mm`,'すれ違いはぎりぎりです。ピーク時のオペレーションを想定して確認してください。');
+  else
+    push('ok',`主通路 ${cfg.aisle}mm`,'配膳とバッシングがスムーズに行える幅です。');
+
+  const kr=L.kitchenArea/L.totalArea;
+  if(kr<g.kitchenRatio*0.85)
+    push('warn',`厨房比率 ${Math.round(kr*100)}％（目安 ${Math.round(g.kitchenRatio*100)}％）`,'厨房が手狭です。ピーク時の提供スピードが頭打ちになります。仕込みを別途行うか、メニュー数を絞る前提が必要です。');
+  else
+    push('ok',`厨房 ${L.kitchenArea.toFixed(1)}㎡（${Math.round(kr*100)}％）`,'この業態として妥当な厨房面積です。');
+
+  if(cfg.ceil<2.4)
+    push('warn',`天井高 ${cfg.ceil}m`,'ダクトや空調の納まりが厳しくなります。特に天井内の排気経路は施工前に必ず確認を。');
+  if(st.id==='industrial'&&cfg.ceil<2.8)
+    push('warn','インダストリアルは天井高が要ります','躯体現しは2.8m以上ないと圧迫感が出ます。天井は塗装で仕上げ、壁と什器で表現する方向に振ってください。');
+  if(g.id==='yakiniku')
+    push('warn','各席へのロースター排気が必須','無煙ロースターのダクト経路と、給気とのバランス設計が必要です。内装工事より設備工事が主役になる業態です。');
+  if(!cfg.toilet)
+    push('warn','店内トイレなし','ビル共用トイレ前提です。営業許可の要件と、女性客の来店動機に影響します。事前に保健所へ確認を。');
+  if(g.id==='ramen'||g.id==='teishoku')
+    push('ok','入口付近に待ち客の滞留スペースを','ピーク時に3〜5名が並ぶ前提で、レジ・券売機まわりに1.5㎡ほど空けておくと動線が破綻しません。');
+  return N;
+}
+
+/* ============================================================
+   結果ビルド
+   ============================================================ */
+function buildPlan(){
+  const cfg=readCfg(), g=state.genre, st=state.style;
+  const L=computeLayout(cfg,g);
+  const notes=diagnose(cfg,L,g,st);
+  const monthly=Math.round(L.seats*0.7*cfg.turns*cfg.price*26/10000);
+  const fitTxt=st.fit.includes(g.id)
+    ? `<b>${g.n}</b>と<b>${st.n}</b>は相性の良い組み合わせです。`
+    : `<b>${st.n}</b>は${g.n}では定番ではありませんが、差別化として成立します。${STYLES.filter(s=>s.fit.includes(g.id)).map(s=>s.n).join('・')}が王道です。`;
+
+  $('s4').innerHTML=`
+  <div class="result-head">
+    <div>
+      <h2 class="sec">${g.n} ／ ${st.n} のプラン</h2>
+      <p class="lead" style="margin:0">${(cfg.W/1000).toFixed(1)}m × ${(cfg.D/1000).toFixed(1)}m ＝ ${L.totalArea.toFixed(1)}㎡（${(L.totalArea/3.3058).toFixed(1)}坪）</p>
+    </div>
+    <div class="badges"><span class="badge">${g.ic} ${g.n}</span><span class="badge">${st.ic} ${st.n}</span></div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="l">総席数</div><div class="v">${L.seats}<small>席</small></div></div>
+    <div class="kpi"><div class="l">カウンター / テーブル</div><div class="v">${L.counterSeats}<small>/</small>${L.tableSeats}</div></div>
+    <div class="kpi"><div class="l">1席あたり面積</div><div class="v">${L.seatArea.toFixed(2)}<small>㎡</small></div></div>
+    <div class="kpi"><div class="l">厨房面積</div><div class="v">${L.kitchenArea.toFixed(1)}<small>㎡</small></div></div>
+    <div class="kpi"><div class="l">月商の目安</div><div class="v">${monthly}<small>万円</small></div></div>
+  </div>
+
+  <div class="block">
+    <h3>レイアウト図</h3>
+    ${drawPlan(cfg,L,st)}
+    <div class="legend">
+      <span><i style="background:#c8c2ba"></i>厨房</span>
+      <span><i style="background:${st.c.wood}"></i>テーブル・カウンター</span>
+      <span><i style="background:${st.c.fabric}"></i>椅子</span>
+      <span><i style="background:${st.c.accent}"></i>入口</span>
+      <span>通路幅 ${cfg.aisle}mm ／ 椅子引きしろ ${DIM.chairPull}mm で計算</span>
+    </div>
+  </div>
+
+  <div class="two">
+    <div class="block">
+      <h3>什器の構成</h3>
+      <table>
+        <tr><th>品目</th><th>寸法(mm)</th><th class="num">数量</th><th class="num">席数</th></tr>
+        ${L.furn.T4?`<tr><td>4名テーブル</td><td>1200×750</td><td class="num">${L.furn.T4}</td><td class="num">${L.furn.T4*4}</td></tr>`:''}
+        ${L.furn.T2?`<tr><td>2名テーブル</td><td>700×700</td><td class="num">${L.furn.T2}</td><td class="num">${L.furn.T2*2}</td></tr>`:''}
+        ${L.counterSeats?`<tr><td>カウンター＋スツール</td><td>奥行500 / 600ピッチ</td><td class="num">${L.counterSeats}</td><td class="num">${L.counterSeats}</td></tr>`:''}
+        <tr><td>チェア（テーブル用）</td><td>—</td><td class="num">${L.tableSeats}</td><td class="num">—</td></tr>
+        <tr><td><b>合計席数</b></td><td></td><td class="num"></td><td class="num"><b>${L.seats}</b></td></tr>
+      </table>
+    </div>
+    <div class="block">
+      <h3>売上シミュレーション</h3>
+      <table>
+        <tr><td>客単価</td><td class="num">${cfg.price.toLocaleString()} 円</td></tr>
+        <tr><td>1日の回転数</td><td class="num">${cfg.turns} 回</td></tr>
+        <tr><td>想定満席率</td><td class="num">70 ％</td></tr>
+        <tr><td>1日の客数</td><td class="num">${Math.round(L.seats*0.7*cfg.turns)} 人</td></tr>
+        <tr><td>1日の売上</td><td class="num">${Math.round(L.seats*0.7*cfg.turns*cfg.price).toLocaleString()} 円</td></tr>
+        <tr><td><b>月商（26日営業）</b></td><td class="num"><b>${monthly} 万円</b></td></tr>
+      </table>
+      <p style="font-size:11.5px;color:var(--sub);margin:10px 0 0">満席率70％・26日営業の概算です。実際は曜日と時間帯で大きく振れます。</p>
+    </div>
+  </div>
+
+  <div class="block">
+    <h3>プランの診断</h3>
+    <ul class="notes">
+      ${notes.map(n=>`<li class="${n.lv}"><b>${n.lv==='ok'?'✓':n.lv==='warn'?'!':'×'}</b><span><b>${n.t}</b><br>${n.d}</span></li>`).join('')}
+    </ul>
+    <p style="font-size:12.5px;color:var(--sub);margin:14px 0 0;padding-top:12px;border-top:1px solid var(--line)">
+      <b>${g.n}のポイント：</b>${g.tip}</p>
+  </div>
+
+  <div class="block">
+    <h3>内装イメージ ─ ${st.n}</h3>
+    ${drawPerspective(st,cfg,L)}
+    <p style="font-size:13px;margin:14px 0 0">${fitTxt}</p>
+    <div class="mood">
+      ${st.mats.map(([k,v,d])=>`
+        <div class="mat">
+          <div class="ch" style="background:${
+            k==='床'?st.c.floor : k==='壁'||k==='天井'?st.c.wall :
+            k.includes('椅子')||k.includes('ソファ')?st.c.fabric :
+            k==='金物'?st.c.metal : st.c.wood}"></div>
+          <div class="tx"><b>${k}｜${v}</b><span>${d}</span></div>
+        </div>`).join('')}
+    </div>
+  </div>
+
+  <div class="two">
+    <div class="block">
+      <h3>配色パレット</h3>
+      <table>
+        ${[['床',st.c.floor],['壁',st.c.wall],['天井',st.c.ceil],['木部',st.c.wood],['アクセント',st.c.accent],['張地',st.c.fabric],['金物',st.c.metal]]
+          .map(([k,v])=>`<tr><td><span style="display:inline-block;width:22px;height:22px;border-radius:4px;background:${v};border:1px solid var(--line);vertical-align:-6px;margin-right:9px"></span>${k}</td><td class="num" style="font-family:monospace">${v.toUpperCase()}</td></tr>`).join('')}
+      </table>
+    </div>
+    <div class="block">
+      <h3>照明計画</h3>
+      <table>
+        <tr><td>色温度</td><td class="num">${st.light.k}</td></tr>
+        <tr><td>主な器具</td><td class="num">${st.light.fx}</td></tr>
+        <tr><td>推奨照度</td><td class="num">${st.light.lx}</td></tr>
+        <tr><td>天井高</td><td class="num">${cfg.ceil} m</td></tr>
+      </table>
+      <p style="font-size:12px;color:var(--sub);margin:10px 0 0">
+        ペンダントは天板から600〜800mm上を目安に吊ると、料理が主役になり、向かいの客の顔にも影が出ません。</p>
+    </div>
+  </div>
+
+  <div class="nav noprint">
+    <button class="btn ghost" data-back="3">条件を変えて作り直す</button>
+    <button class="btn" onclick="window.print()">この提案書を印刷 / PDF保存</button>
+  </div>`;
+
+  $('s4').querySelectorAll('[data-back]').forEach(b=>b.onclick=()=>goto(+b.dataset.back));
+}
+
+renderSteps();
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+# 経営データ等はバージョン管理対象外
+*.xlsx
+*.xls
+~$*
+
+# OS
+Thumbs.db
+desktop.ini
