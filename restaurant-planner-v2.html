@@ -191,7 +191,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
     <div class="kpis">
       <div class="kpi"><div class="l">総席数</div><div class="v" id="kSeats">0<small>席</small></div></div>
       <div class="kpi"><div class="l">1席あたり</div><div class="v" id="kPer">-<small>㎡</small></div></div>
-      <div class="kpi"><div class="l">厨房比率</div><div class="v" id="kKit">-<small>%</small></div></div>
+      <div class="kpi"><div class="l">カウンター内幅</div><div class="v" id="kKit">-<small>mm</small></div></div>
       <div class="kpi"><div class="l">ダーツレーン</div><div class="v" id="kDart">0<small>面</small></div></div>
       <div class="kpi"><div class="l">月商の目安</div><div class="v" id="kMon">-<small>万円</small></div></div>
     </div>
@@ -205,6 +205,9 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
         <button class="btn sm ghost" id="undoB" title="Ctrl+Z">↩ 元に戻す</button>
         <button class="btn sm ghost" id="fitB">⊡ 全体表示</button>
         <span class="sep"></span>
+        <button class="btn sm ghost" id="measB" title="2点をドラッグして通路幅などを計測">📏 計測</button>
+        <button class="btn sm ghost" id="measClr">計測を消す</button>
+        <span class="sep"></span>
         <label id="bgCtl" class="hide"><input type="checkbox" id="bgV" checked>下絵
           <input type="range" id="bgOp" min="10" max="100" value="55" style="width:80px"></label>
         <span class="sep"></span>
@@ -217,13 +220,15 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
         <b id="selName"></b>
         <span id="selFix"></span>
         <span id="selSize" class="hide">幅<input type="number" id="selW" step="50">× 奥行<input type="number" id="selH" step="50">mm</span>
+        <span id="selHgtBox" class="hide">高さ<input type="number" id="selZ" step="50">mm</span>
         <span id="finRow" class="hide">｜ 木部<span class="swr" id="finWood"></span>張地<span class="swr" id="finFab"></span><button class="btn sm ghost" id="legB"></button></span>
         <button class="btn sm ghost" id="rotB">⟳ 回転(R)</button>
         <button class="btn sm ghost" id="dupB">⧉ 複製</button>
         <button class="btn sm ghost" id="delB" style="color:var(--bad)">✕ 削除</button>
       </div>
       <canvas class="cv" id="ed" height="580" style="cursor:default"></canvas>
-      <p class="hint">ドラッグで移動（何もない所は画面移動）／ホイールで拡大縮小／R:回転 Delete:削除 矢印キー:微調整／間仕切り・カウンター等は選択時に出る<b style="color:var(--accent)">●ハンドル</b>を引っ張って長さ変更</p>
+      <p class="hint">ドラッグで移動（何もない所は画面移動）／ホイールで拡大縮小／R:回転 Delete:削除 矢印キー:微調整／間仕切り・カウンター等は選択時に出る<b style="color:var(--accent)">●ハンドル</b>を引っ張って長さ変更<br>
+      <b style="color:var(--warn)">📏 計測</b>を押すと、通路幅などを2点ドラッグで測れます（Shiftで水平・垂直に固定）</p>
     </div>
 
     <div class="block">
@@ -358,7 +363,7 @@ const CAT={
  dart:{n:'ダーツレーン（台650×574・壁からライン2760・奥行3760）',s:'ダーツ',w:700,h:3760},
  poker:{n:'ポーカー台 2100×1100（8人掛け・オーバル）',s:'ポーカー8',w:2100,h:1100,seats:8},
  poker10:{n:'ポーカー台 2400×1200（10人掛け・オーバル）',s:'ポーカー10',w:2400,h:1200,seats:10},
- kitchen:{n:'厨房ゾーン',s:'厨房',w:3000,h:2200,rez:1,zone:1},
+ kitchen:{n:'カウンター内（通路 基本800／狭い場合650）',s:'カウンター内',w:4800,h:800,rez:1,zone:1},
  fridge:{n:'冷蔵冷凍庫 1200×600',s:'冷蔵冷凍',w:1200,h:600,kit:1,hgt:1950},
  freezer:{n:'縦型冷凍庫 570×520',s:'縦冷凍',w:570,h:520,kit:1,hgt:1850},
  ice:{n:'製氷機 1000×600',s:'製氷機',w:1000,h:600,kit:1,hgt:800},
@@ -376,7 +381,9 @@ const CAT={
  wall:{n:'間仕切り（腰上・高さ1.5m・厚み固定）',s:'間仕切り',w:1500,h:100,rez:1,fixH:1},
  swall:{n:'造作壁（天井まで）',s:'造作壁',w:1800,h:100,rez:1},
  pillar:{n:'柱',s:'柱',w:600,h:600,rez:1},
- beam:{n:'梁（天井下がり）',s:'梁',w:3000,h:300,rez:1}
+ beam:{n:'梁（天井下がり）',s:'梁',w:3000,h:300,rez:1},
+ rect:{n:'□ 長方形（自由造作・サイズ/高さ変更可）',s:'□ 長方形',w:1000,h:600,rez:1,shape:1,hgt:900},
+ circle:{n:'〇 円・楕円（自由造作・サイズ/高さ変更可）',s:'〇 円',w:800,h:800,rez:1,shape:1,round:1,hgt:900}
 };
 function seatsOf(it){
   const t=it.type;
@@ -391,7 +398,7 @@ const FIN={
  fabrics:[{n:'チャコール',v:'#3a3835'},{n:'キャメル',v:'#b98a52'},{n:'ワインレッド',v:'#7d2b30'},
           {n:'モスグリーン',v:'#5d6e52'},{n:'ネイビー',v:'#31435c'},{n:'アイボリー',v:'#d8cbb4'}]
 };
-const WOOD_T=['t4','t6','t2','high','round','counter','reg','wall','poker','poker10'];
+const WOOD_T=['t4','t6','t2','high','round','counter','reg','wall','poker','poker10','rect','circle'];
 const FAB_T=['t4','t6','t2','high','round','counter','sofa','poker','poker10'];
 const LEG_T=['t4','t6','t2','high','round'];
 const woodOf=it=>(it.fin&&it.fin.wood)||(S.style?S.style.c.wood:'#b08655');
@@ -404,7 +411,8 @@ const S={
   room:{W:7500,D:16000,ceil:2.7,aisle:900},
   biz:{price:3000,turns:2},
   bg:null,           // {img,mmPerPx,origin:{x,y},visible,opacity}
-  items:[],sel:null,undo:[],idc:1
+  items:[],sel:null,undo:[],idc:1,
+  meas:[],measMode:false   // 計測線 [{x1,y1,x2,y2}]
 };
 
 /* ================= ウィザード ================= */
@@ -776,14 +784,15 @@ function seedAuto(){
   const kpos=$('kpos').value,items=[];
   const CH=550,GAP=450;
   let sx0=0,sx1=W,sy0=0,sy1=D-900;
-  const kA=W*D*g.kitchenRatio;
+  // カウンター内（スタッフ通路）＝基本800mmの帯。厨房機器はこの帯の背面側に置く想定
+  const KIN=800;
   if(kpos==='back'){
-    const kd=clamp(kA/W,2200,D*.45);
-    items.push(mk('kitchen',W/2,kd/2,W,kd));sy0=kd;
+    const kd=clamp(W*D*g.kitchenRatio/W,KIN,D*.3);
+    items.push(mk('kitchen',W/2,kd-KIN/2,W,KIN));sy0=kd;
   }else{
-    const kw=clamp(kA/D,2200,W*.45);
-    if(kpos==='left'){items.push(mk('kitchen',kw/2,D/2,kw,D));sx0=kw}
-    else{items.push(mk('kitchen',W-kw/2,D/2,kw,D));sx1=W-kw}
+    const kw=clamp(W*D*g.kitchenRatio/D,KIN,W*.3);
+    if(kpos==='left'){items.push(mk('kitchen',kw-KIN/2,D/2,KIN,D));sx0=kw}
+    else{items.push(mk('kitchen',W-kw+KIN/2,D/2,KIN,D));sx1=W-kw}
   }
   const obstacles=[];
   if($('toilet').checked&&sx1-sx0>3500){
@@ -954,6 +963,11 @@ function renderEd(){
     }else if(t==='beam'){
       ctx.strokeStyle='#9a938b';ctx.setLineDash([220,140]);
       ctx.strokeRect(-w/2,-h/2,w,h);ctx.setLineDash([]);
+    }else if(CAT[t].shape){
+      ctx.fillStyle=woodOf(it);ctx.globalAlpha=.9;
+      ctx.beginPath();
+      if(CAT[t].round)ctx.ellipse(0,0,w/2,h/2,0,0,7);else ctx.rect(-w/2,-h/2,w,h);
+      ctx.fill();ctx.globalAlpha=1;ctx.strokeStyle='#4a453f';ctx.stroke();
     }else if(t==='dart'){
       ctx.fillStyle='rgba(35,35,45,.75)';ctx.fillRect(-w/2,-h/2,w,h);
       ctx.strokeStyle='#26262b';ctx.strokeRect(-w/2,-h/2,w,h);
@@ -1026,7 +1040,7 @@ function renderEd(){
   // ラベル（非回転・画面座標）
   S.items.forEach(it=>{
     const t=it.type;
-    if(t==='kitchen')drawLabel(ctx,it.cx,it.cy,`厨房 ${(it.w*it.h/1e6).toFixed(1)}㎡`,'#5c5852',12);
+    if(t==='kitchen')drawLabel(ctx,it.cx,it.cy,`カウンター内 ${Math.min(it.w,it.h)}mm`,'#5c5852',11);
     if(t==='storage')drawLabel(ctx,it.cx,it.cy,'倉庫','#5c5852',11);
     if(t==='wc')drawLabel(ctx,it.cx,it.cy,'WC','#5c5852',11);
     if(t==='reg')drawLabel(ctx,it.cx,it.cy,'レジ','#fff',10);
@@ -1036,6 +1050,24 @@ function renderEd(){
     if(t==='door2')drawLabel(ctx,it.cx,it.cy+280,'ドア','#7d6f5c',10);
     if(t==='beam')drawLabel(ctx,it.cx,it.cy,'梁','#8d8880',10);
     if(CAT[t].kit)drawLabel(ctx,it.cx,it.cy,CAT[t].s,'#5c6166',9);
+  });
+  // 計測線
+  ctx.setTransform(r,0,0,r,0,0);
+  S.meas.forEach(m=>{
+    const a=w2s({x:m.x1,y:m.y1}),b=w2s({x:m.x2,y:m.y2});
+    const mm=Math.round(Math.hypot(m.x2-m.x1,m.y2-m.y1));
+    ctx.strokeStyle='#c2571f';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+    // 端の直交マーク
+    const ang=Math.atan2(b.y-a.y,b.x-a.x),px=Math.sin(ang)*7,py=-Math.cos(ang)*7;
+    ctx.beginPath();ctx.moveTo(a.x-px,a.y-py);ctx.lineTo(a.x+px,a.y+py);
+    ctx.moveTo(b.x-px,b.y-py);ctx.lineTo(b.x+px,b.y+py);ctx.stroke();
+    const tx=(a.x+b.x)/2,ty=(a.y+b.y)/2;
+    ctx.font='700 12px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    const label=mm>=1000?`${(mm/1000).toFixed(2)}m (${mm})`:`${mm}mm`;
+    const tw=ctx.measureText(label).width+10;
+    ctx.fillStyle='rgba(255,255,255,.92)';ctx.fillRect(tx-tw/2,ty-19,tw,16);
+    ctx.fillStyle='#c2571f';ctx.fillText(label,tx,ty-11);
   });
   // 追加直後のハイライトリング
   if(flash){
@@ -1063,7 +1095,7 @@ function aabb(it){
 }
 function findOverlaps(){
   const set=new Set();
-  const fur=S.items.filter(i=>!CAT[i.type].zone&&i.type!=='door'&&i.type!=='door2'&&i.type!=='wall'&&i.type!=='beam'&&i.type!=='swall');
+  const fur=S.items.filter(i=>!CAT[i.type].zone&&!CAT[i.type].shape&&i.type!=='door'&&i.type!=='door2'&&i.type!=='wall'&&i.type!=='beam'&&i.type!=='swall');
   for(let i=0;i<fur.length;i++)for(let j=i+1;j<fur.length;j++){
     const a=aabb(fur[i]),b=aabb(fur[j]);
     if(a.x0<b.x1-15&&b.x0<a.x1-15&&a.y0<b.y1-15&&b.y0<a.y1-15){set.add(fur[i].id);set.add(fur[j].id)}
@@ -1100,6 +1132,10 @@ function hitTest(w){
   c.addEventListener('pointerdown',e=>{
     c.setPointerCapture(e.pointerId);
     const r=c.getBoundingClientRect(),sp={x:e.clientX-r.left,y:e.clientY-r.top},w=s2w(sp);
+    if(S.measMode){   // 計測モード：ドラッグで2点間を計測
+      const m={x1:Math.round(w.x),y1:Math.round(w.y),x2:Math.round(w.x),y2:Math.round(w.y)};
+      S.meas.push(m);drag={t:'meas',m};renderEd();return;
+    }
     // 選択中の可変什器なら、まず伸縮ハンドルを判定
     const selIt=S.items.find(i=>i.id===S.sel);
     if(selIt&&CAT[selIt.type].rez){
@@ -1114,6 +1150,15 @@ function hitTest(w){
   c.addEventListener('pointermove',e=>{
     if(!drag)return;
     const r=c.getBoundingClientRect(),sp={x:e.clientX-r.left,y:e.clientY-r.top};
+    if(drag.t==='meas'){
+      const w=s2w(sp);
+      drag.m.x2=Math.round(w.x);drag.m.y2=Math.round(w.y);
+      if(e.shiftKey){ // Shiftで水平/垂直に固定
+        if(Math.abs(drag.m.x2-drag.m.x1)>Math.abs(drag.m.y2-drag.m.y1))drag.m.y2=drag.m.y1;
+        else drag.m.x2=drag.m.x1;
+      }
+      renderEd();return;
+    }
     if(drag.t==='pan'){view.x=drag.vx-(sp.x-drag.sx)/view.z;view.y=drag.vy-(sp.y-drag.sy)/view.z}
     else if(drag.t==='resize'){
       const it=drag.it,w=s2w(sp);
@@ -1141,7 +1186,15 @@ function hitTest(w){
     }
     renderEd();
   });
-  c.addEventListener('pointerup',()=>{if(drag&&(drag.t==='item'||drag.t==='resize')){render3D();updateAll()}drag=null});
+  c.addEventListener('pointerup',()=>{
+    if(drag&&drag.t==='meas'){
+      const m=drag.m;
+      if(Math.hypot(m.x2-m.x1,m.y2-m.y1)<80)S.meas.pop();  // ただのクリックは無視
+      renderEd();
+    }
+    else if(drag&&(drag.t==='item'||drag.t==='resize')){render3D();updateAll()}
+    drag=null;
+  });
   c.addEventListener('wheel',e=>{
     e.preventDefault();
     const r=c.getBoundingClientRect(),sp={x:e.clientX-r.left,y:e.clientY-r.top},w=s2w(sp);
@@ -1177,6 +1230,15 @@ function dupSel(){const it=S.items.find(i=>i.id===S.sel);if(!it)return;
 $('rotB').onclick=rotSel;$('delB').onclick=delSel;$('dupB').onclick=dupSel;
 $('undoB').onclick=popUndo;
 $('fitB').onclick=()=>{fitView();renderEd()};
+$('measB').onclick=()=>{
+  S.measMode=!S.measMode;
+  $('measB').classList.toggle('okbtn',S.measMode);
+  $('measB').textContent=S.measMode?'📏 計測中（クリックで終了）':'📏 計測';
+  $('ed').style.cursor=S.measMode?'crosshair':'default';
+  if(S.measMode){S.sel=null;syncSel()}
+  renderEd();
+};
+$('measClr').onclick=()=>{S.meas=[];renderEd()};
 /* --- 家具パレット（ミニチュア付きカード） --- */
 function thumb(type){
   const cv=document.createElement('canvas');cv.width=88;cv.height=68;
@@ -1207,6 +1269,11 @@ function thumb(type){
     x.strokeStyle='#3a3733';x.strokeRect(-d.w/2,-d.h/2,d.w,d.h);
   }else if(t==='beam'){
     x.strokeStyle='#9a938b';x.setLineDash([260,160]);x.strokeRect(-d.w/2,-d.h/2,d.w,d.h);
+  }else if(CAT[t].shape){
+    x.fillStyle='#a97f4f';x.strokeStyle='#4a453f';
+    x.beginPath();
+    if(CAT[t].round)x.ellipse(0,0,d.w/2,d.h/2,0,0,7);else x.rect(-d.w/2,-d.h/2,d.w,d.h);
+    x.fill();x.stroke();
   }else if(t==='dart'){
     x.fillStyle='#2a2a31';x.fillRect(-d.w/2,-d.h/2,d.w,d.h);
     x.fillStyle='#111';x.fillRect(-325,-d.h/2,650,574);
@@ -1267,7 +1334,7 @@ function addItem(t){
 const PAL_GROUPS=[
  {t:'客席・ダーツ',k:['t2','t4','t6','high','round','counter','sofa','dart','poker','poker10']},
  {t:'厨房・設備（恵比寿基本寸法）',k:['kitchen','fridge','freezer','ice','dfridge','showcase','sink2','sink1','work','shelf','reg']},
- {t:'建築・その他',k:['storage','wc','door','door2','wall','swall','pillar','beam']}
+ {t:'建築・その他',k:['storage','wc','door','door2','wall','swall','pillar','beam','rect','circle']}
 ];
 PAL_GROUPS.forEach(g=>{
   const lb=document.createElement('span');lb.className='pg';lb.textContent=g.t;
@@ -1296,6 +1363,10 @@ function syncSel(){
     $('selH').disabled=!!CAT[it.type].fixH;
     $('selH').title=CAT[it.type].fixH?'この什器の厚みは固定です':'';
   }else $('selSize').classList.add('hide');
+  if(CAT[it.type].shape){
+    $('selHgtBox').classList.remove('hide');
+    $('selZ').value=it.hgt||CAT[it.type].hgt||900;
+  }else $('selHgtBox').classList.add('hide');
   // 仕上げスウォッチ
   const hasW=WOOD_T.includes(it.type),hasF=FAB_T.includes(it.type),hasL=LEG_T.includes(it.type);
   $('finRow').classList.toggle('hide',!(hasW||hasF||hasL));
@@ -1329,6 +1400,8 @@ $('selW').onchange=e=>{const it=S.items.find(i=>i.id===S.sel);if(!it)return;
   pushUndo();it.w=clamp(+e.target.value,200,20000);renderEd();render3D();updateAll();syncSel()};
 $('selH').onchange=e=>{const it=S.items.find(i=>i.id===S.sel);if(!it||CAT[it.type].fixH)return;
   pushUndo();it.h=clamp(+e.target.value,80,20000);renderEd();render3D();updateAll();syncSel()};
+$('selZ').onchange=e=>{const it=S.items.find(i=>i.id===S.sel);if(!it)return;
+  pushUndo();it.hgt=clamp(+e.target.value,50,4000);renderEd();render3D();updateAll();syncSel()};
 
 /* ================= 保存・読込（物件ライブラリ＋自動保存） ================= */
 const LS_INDEX='dartsPlanner.index';
@@ -1481,6 +1554,20 @@ function addBox(P,cx,cy,rot,w,h,z0,z1,col){
             n:{x:nx*cs-ny*sn,y:nx*sn+ny*cs,z:0}});
   }
 }
+function addCyl(P,cx,cy,rot,rw,rh,z0,z1,col){ // 楕円柱（自由造作の〇）
+  const N=20,rd=rot*Math.PI/180,cs=Math.cos(rd),sn=Math.sin(rd);
+  const pt=(a)=>{const lx=Math.cos(a)*rw,ly=Math.sin(a)*rh;
+    return{x:cx+lx*cs-ly*sn,y:cy+lx*sn+ly*cs}};
+  const top=[];for(let k=0;k<N;k++)top.push({...pt(k/N*2*Math.PI),z:z1});
+  P.push({pts:top,col,n:{x:0,y:0,z:1}});
+  for(let k=0;k<N;k++){
+    const a1=k/N*2*Math.PI,a2=(k+1)/N*2*Math.PI,am=(a1+a2)/2;
+    const p1=pt(a1),p2=pt(a2);
+    const nx=Math.cos(am),ny=Math.sin(am);
+    P.push({pts:[{...p1,z:z0},{...p2,z:z0},{...p2,z:z1},{...p1,z:z1}],col,
+            n:{x:nx*cs-ny*sn,y:nx*sn+ny*cs,z:0}});
+  }
+}
 function addDisk(P,c0,dir,r0,col,n0){
   // dir: 法線方向(水平単位ベクトル)。r0半径の16角形
   const u={x:-dir.y,y:dir.x};
@@ -1537,6 +1624,10 @@ function buildScene(){
       addBox(P,cx,cy,rot,w,h,0,H,mixc(cc.wall,'#5a5650',.25));
     }else if(t==='pillar'){
       addBox(P,cx,cy,rot,w,h,0,H,mixc(cc.wall,'#66625d',.35));
+    }else if(CAT[t].shape){
+      const zh=it.hgt||CAT[t].hgt||900;
+      if(CAT[t].round)addCyl(P,cx,cy,rot,w/2,h/2,0,zh,woodOf(it));
+      else addBox(P,cx,cy,rot,w,h,0,zh,woodOf(it));
     }else if(t==='beam'){
       addBox(P,cx,cy,rot,w,h,Math.max(H-550,H*.72),H,shade(cc.ceil,.82));
     }else if(t==='door'||t==='door2'){
@@ -1756,10 +1847,12 @@ function updateAll(){
   const seats=S.items.reduce((s,i)=>s+seatsOf(i),0);
   const darts=S.items.filter(i=>i.type==='dart').length;
   const per=seats?(total-kitA-stoA)/seats:0;
-  const mon=Math.round(seats*.7*S.biz.turns*S.biz.price*26/1e4);
+  const mon=Math.round(seats*.7*S.biz.turns*S.biz.price*30/1e4);
+  const kitIt=S.items.filter(i=>i.type==='kitchen');
+  const kitMin=kitIt.length?Math.min(...kitIt.map(i=>Math.min(i.w,i.h))):0;
   $('kSeats').innerHTML=seats+'<small>席</small>';
   $('kPer').innerHTML=(seats?per.toFixed(2):'-')+'<small>㎡</small>';
-  $('kKit').innerHTML=(total?Math.round(kitA/total*100):0)+'<small>%</small>';
+  $('kKit').innerHTML=(kitMin?kitMin:'-')+'<small>mm</small>';
   $('kDart').innerHTML=darts+'<small>面</small>';
   $('kMon').innerHTML=(seats?mon:'-')+'<small>万円</small>';
   // 診断
@@ -1772,10 +1865,10 @@ function updateAll(){
     else if(per<g.seatArea)push('warn',`1席あたり ${per.toFixed(2)}㎡（目安 ${g.seatArea}㎡）`,'やや高密度。回転重視なら成立します。');
     else push('ok',`1席あたり ${per.toFixed(2)}㎡`,`${g.n}の目安 ${g.seatArea}㎡を満たしています。`);
   }
-  const kr=total?kitA/total:0;
-  if(kitA===0)push('warn','厨房ゾーンが未配置','「厨房ゾーン」を置くと面積比を診断できます。');
-  else if(kr<g.kitchenRatio*.85)push('warn',`厨房比率 ${Math.round(kr*100)}％（目安 ${Math.round(g.kitchenRatio*100)}％）`,'厨房が手狭です。提供スピードが頭打ちになる可能性。');
-  else push('ok',`厨房 ${kitA.toFixed(1)}㎡（${Math.round(kr*100)}％）`,'業態として妥当な厨房面積です。');
+  if(!kitIt.length)push('warn','カウンター内が未配置','「カウンター内」を置くと、スタッフ通路の幅を診断できます（基本800mm）。');
+  else if(kitMin<650)push('bad',`カウンター内 ${kitMin}mm`,'狭すぎます。最小でも650mm、基本は800mmを確保してください。');
+  else if(kitMin<800)push('warn',`カウンター内 ${kitMin}mm`,'650〜800mmは「1人が通れる」幅です。スタッフ同士のすれ違いはできません。');
+  else push('ok',`カウンター内 ${kitMin}mm`,'基本の800mm以上を確保できています。');
   if(darts>0){
     push('ok',`ダーツレーン ${darts}面`,'黄色線がスローライン（壁面から2,760mm・レーン必要奥行3,760mm＝恵比寿基本寸法）。ライン後方に600mm以上の通行余地があるか、図で確認してください。レーン正面を横切る動線はNGです。');
   }
@@ -1800,7 +1893,7 @@ function updateAll(){
     <tr><td>回転数 / 日</td><td class="num">${S.biz.turns} 回</td></tr>
     <tr><td>満席率（想定）</td><td class="num">70 ％</td></tr>
     <tr><td>1日の売上</td><td class="num">${Math.round(seats*.7*S.biz.turns*S.biz.price).toLocaleString()} 円</td></tr>
-    <tr><td><b>月商（26日営業）</b></td><td class="num"><b>${mon} 万円</b></td></tr></table>
+    <tr><td><b>月商（30日営業）</b></td><td class="num"><b>${mon} 万円</b></td></tr></table>
     <p style="font-size:11.5px;color:var(--sub);margin:8px 0 0">${darts?'※ダーツはゲーム売上（1人あたり500〜1,500円/滞在）が別途上乗せになります。':''}</p>`;
   autosave();
 }
