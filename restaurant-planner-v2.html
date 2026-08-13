@@ -205,12 +205,15 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
         <button class="btn sm ghost" id="undoB" title="Ctrl+Z">↩ 元に戻す</button>
         <button class="btn sm ghost" id="fitB">⊡ 全体表示</button>
         <span class="sep"></span>
+        <button class="btn sm ghost okbtn" id="snapB" title="壁や什器の縁にぴったり吸着させる（Altを押しながらで一時解除）">🧲 吸着ON</button>
+        <span class="sep"></span>
         <button class="btn sm ghost" id="measB" title="2点をドラッグして通路幅などを計測">📏 計測</button>
         <button class="btn sm ghost" id="measClr">計測を消す</button>
         <span class="sep"></span>
         <label id="bgCtl" class="hide"><input type="checkbox" id="bgV" checked>下絵
           <input type="range" id="bgOp" min="10" max="100" value="55" style="width:80px"></label>
         <span class="sep"></span>
+        <button class="btn sm ghost" id="saveAsB" title="今の内容を別の物件として複製保存（元の物件はそのまま残ります）">📋 名前を付けて別保存</button>
         <button class="btn sm ghost" id="saveB">💾 ファイル書出</button>
         <button class="btn sm ghost" id="loadB">📂 ファイル読込</button>
         <input type="file" id="projIn" accept=".json" hidden>
@@ -228,6 +231,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
       </div>
       <canvas class="cv" id="ed" height="580" style="cursor:default"></canvas>
       <p class="hint">ドラッグで移動（何もない所は画面移動）／ホイールで拡大縮小／R:回転 Delete:削除 矢印キー:微調整／間仕切り・カウンター等は選択時に出る<b style="color:var(--accent)">●ハンドル</b>を引っ張って長さ変更<br>
+      <b style="color:var(--accent)">🧲 吸着</b>ON中は、壁や他の什器の縁にぴったり付きます（Altを押しながらドラッグで一時解除）／
       <b style="color:var(--warn)">📏 計測</b>を押すと、通路幅などを2点ドラッグで測れます（Shiftで水平・垂直に固定）</p>
     </div>
 
@@ -412,7 +416,8 @@ const S={
   biz:{price:3000,turns:2},
   bg:null,           // {img,mmPerPx,origin:{x,y},visible,opacity}
   items:[],sel:null,undo:[],idc:1,
-  meas:[],measMode:false   // 計測線 [{x1,y1,x2,y2}]
+  meas:[],measMode:false,  // 計測線 [{x1,y1,x2,y2}]
+  snap:true,guides:[]      // 吸着（壁・什器の縁にぴったり付ける）
 };
 
 /* ================= ウィザード ================= */
@@ -1051,6 +1056,15 @@ function renderEd(){
     if(t==='beam')drawLabel(ctx,it.cx,it.cy,'梁','#8d8880',10);
     if(CAT[t].kit)drawLabel(ctx,it.cx,it.cy,CAT[t].s,'#5c6166',9);
   });
+  // 吸着ガイド
+  ctx.setTransform(r,0,0,r,0,0);
+  S.guides.forEach(gd=>{
+    ctx.strokeStyle=gd.wall?'#c2571f':'#1f6f5c';ctx.lineWidth=1.5;ctx.setLineDash([7,5]);
+    ctx.beginPath();
+    if(gd.x!==undefined){const p=w2s({x:gd.x,y:0});ctx.moveTo(p.x,0);ctx.lineTo(p.x,ch)}
+    else{const p=w2s({x:0,y:gd.y});ctx.moveTo(0,p.y);ctx.lineTo(cw,p.y)}
+    ctx.stroke();ctx.setLineDash([]);
+  });
   // 計測線
   ctx.setTransform(r,0,0,r,0,0);
   S.meas.forEach(m=>{
@@ -1115,6 +1129,36 @@ function resHandles(it){ // 伸縮ハンドル（+x端 / +y端の中点。fixH�
   if(!CAT[it.type].fixH)hs.push({axis:'h',...pt(0,it.h/2)});
   return hs;
 }
+/* 壁・什器の縁への吸着。自分の左右(上下)端・中心を、相手の端・中心に合わせる */
+function snapMove(it,cx,cy,off){
+  const g25=v=>Math.round(v/25)*25;
+  if(off||!S.snap)return{cx:g25(cx),cy:g25(cy),guides:[]};
+  const hw=(it.rot%180?it.h:it.w)/2,hh=(it.rot%180?it.w:it.h)/2;
+  const T=clamp(12/view.z,60,400);          // 画面上12px相当の吸着範囲
+  const xs=[{v:0,w:1},{v:S.room.W,w:1}],ys=[{v:0,w:1},{v:S.room.D,w:1}];
+  S.items.forEach(o=>{
+    if(o.id===it.id)return;
+    const a=aabb(o);
+    xs.push({v:a.x0},{v:a.x1},{v:(a.x0+a.x1)/2,c:1});
+    ys.push({v:a.y0},{v:a.y1},{v:(a.y0+a.y1)/2,c:1});
+  });
+  const pick=(cands,cur,half)=>{
+    let best=null;
+    cands.forEach(e=>{
+      [[-half],[half],[0]].forEach(([o2])=>{
+        if(e.c&&o2!==0)return;             // 相手の中心には自分の中心だけ合わせる
+        const target=e.v-o2,d=Math.abs(target-cur);
+        if(d<=T&&(!best||d<best.d-1))best={d,v:target,edge:e.v,wall:!!e.w};
+      });
+    });
+    return best;
+  };
+  const bx=pick(xs,cx,hw),by=pick(ys,cy,hh);
+  const guides=[];
+  if(bx)guides.push({x:bx.edge,wall:bx.wall});
+  if(by)guides.push({y:by.edge,wall:by.wall});
+  return{cx:bx?Math.round(bx.v):g25(cx),cy:by?Math.round(by.v):g25(cy),guides};
+}
 function pushUndo(){S.undo.push(JSON.stringify(S.items));if(S.undo.length>60)S.undo.shift()}
 function popUndo(){if(!S.undo.length)return;S.items=JSON.parse(S.undo.pop());S.sel=null;syncSel();renderEd();render3D();updateAll()}
 function hitTest(w){
@@ -1167,12 +1211,34 @@ function hitTest(w){
       const lx=dx*Math.cos(rd)-dy*Math.sin(rd),ly=dx*Math.sin(rd)+dy*Math.cos(rd);
       const zone=CAT[it.type].zone;
       const cs=Math.cos(it.rot*Math.PI/180),sn=Math.sin(it.rot*Math.PI/180);
+      // 引っ張っている端（ワールド座標）を壁・他什器の縁に吸着させる
+      const snapEdge=(wx,wy,horiz)=>{
+        if(!S.snap||e.altKey)return null;
+        const T=clamp(12/view.z,60,400);
+        const cands=horiz?[0,S.room.W]:[0,S.room.D];
+        S.items.forEach(o=>{if(o.id===it.id)return;const a=aabb(o);
+          cands.push(horiz?a.x0:a.y0,horiz?a.x1:a.y1)});
+        const cur=horiz?wx:wy;
+        let best=null;
+        cands.forEach(v=>{const d=Math.abs(v-cur);if(d<=T&&(!best||d<best.d))best={d,v}});
+        return best;
+      };
+      S.guides=[];
       if(drag.axis==='w'){ // 反対側の端を固定して長さ変更
-        const nw=clamp(Math.round((lx+it.w/2)/50)*50,zone?600:300,25000);
+        let nw=clamp(Math.round((lx+it.w/2)/50)*50,zone?600:300,25000);
+        if(it.rot%90===0){                       // 軸が水平／垂直のときだけ吸着
+          const horiz=it.rot%180===0;
+          const fx=it.cx-(it.w/2)*cs,fy=it.cy-(it.w/2)*sn;   // 固定端
+          const b=snapEdge(fx+nw*cs,fy+nw*sn,horiz);
+          if(b){
+            const cand=Math.abs(horiz?b.v-fx:b.v-fy);
+            if(cand>=(zone?600:300)&&cand<=25000){nw=Math.round(cand);S.guides=[horiz?{x:b.v}:{y:b.v}]}
+          }
+        }
         const d2=(nw-it.w)/2;
         it.cx+=d2*cs;it.cy+=d2*sn;it.w=nw;
       }else{
-        const nh=clamp(Math.round((ly+it.h/2)/50)*50,it.type==='wall'?60:(zone?600:300),25000);
+        let nh=clamp(Math.round((ly+it.h/2)/50)*50,it.type==='wall'?60:(zone?600:300),25000);
         const d2=(nh-it.h)/2;
         it.cx+=-d2*sn;it.cy+=d2*cs;it.h=nh;
       }
@@ -1181,8 +1247,8 @@ function hitTest(w){
     else{
       if(!drag.st){pushUndo();drag.st=true}
       const w=s2w(sp);
-      drag.it.cx=Math.round((w.x-drag.ox)/25)*25;
-      drag.it.cy=Math.round((w.y-drag.oy)/25)*25;
+      const sn=snapMove(drag.it,w.x-drag.ox,w.y-drag.oy,e.altKey);
+      drag.it.cx=sn.cx;drag.it.cy=sn.cy;S.guides=sn.guides;
     }
     renderEd();
   });
@@ -1192,7 +1258,7 @@ function hitTest(w){
       if(Math.hypot(m.x2-m.x1,m.y2-m.y1)<80)S.meas.pop();  // ただのクリックは無視
       renderEd();
     }
-    else if(drag&&(drag.t==='item'||drag.t==='resize')){render3D();updateAll()}
+    else if(drag&&(drag.t==='item'||drag.t==='resize')){S.guides=[];render3D();updateAll();renderEd()}
     drag=null;
   });
   c.addEventListener('wheel',e=>{
@@ -1239,6 +1305,11 @@ $('measB').onclick=()=>{
   renderEd();
 };
 $('measClr').onclick=()=>{S.meas=[];renderEd()};
+$('snapB').onclick=()=>{
+  S.snap=!S.snap;
+  $('snapB').classList.toggle('okbtn',S.snap);
+  $('snapB').textContent=S.snap?'🧲 吸着ON':'🧲 吸着OFF';
+};
 /* --- 家具パレット（ミニチュア付きカード） --- */
 function thumb(type){
   const cv=document.createElement('canvas');cv.width=88;cv.height=68;
@@ -1500,6 +1571,17 @@ $('projList').onclick=async e=>{
     lsSaveIndex(lsIndex().filter(p=>p.id!==dl));
     renderProjLib();
   }
+};
+$('saveAsB').onclick=()=>{
+  if(!lsOK()){alert('この表示環境では保存できません。ファイルを直接ブラウザで開いてお使いください。');return}
+  const base=(S.projName||'物件')+' のコピー';
+  const nm=prompt('新しい物件名を入力してください（元の物件はそのまま残ります）',base);
+  if(nm===null)return;
+  S.projId='p'+Date.now().toString(36);
+  S.projName=nm.trim()||base;
+  $('projName').value=S.projName;
+  autosave(true);
+  $('saveSt').textContent='✓ 「'+S.projName+'」として別保存しました';
 };
 $('saveB').onclick=()=>{
   const a=document.createElement('a');
