@@ -356,6 +356,7 @@ const CAT={
  counter:{n:'バーカウンター 4800×600×H1070（伸縮可）',s:'カウンター',w:4800,h:600,rez:1},
  sofa:{n:'ベンチソファ',s:'ソファ',w:1600,h:550,rez:1},
  dart:{n:'ダーツレーン（台650×574・壁からライン2760・奥行3760）',s:'ダーツ',w:700,h:3760},
+ poker:{n:'ポーカー台 2100×1100（8人掛け・オーバル）',s:'ポーカー台',w:2100,h:1100,seats:8},
  kitchen:{n:'厨房ゾーン',s:'厨房',w:3000,h:2200,rez:1,zone:1},
  fridge:{n:'冷蔵冷凍庫 1200×600',s:'冷蔵冷凍',w:1200,h:600,kit:1,hgt:1950},
  freezer:{n:'縦型冷凍庫 570×520',s:'縦冷凍',w:570,h:520,kit:1,hgt:1850},
@@ -388,8 +389,8 @@ const FIN={
  fabrics:[{n:'チャコール',v:'#3a3835'},{n:'キャメル',v:'#b98a52'},{n:'ワインレッド',v:'#7d2b30'},
           {n:'モスグリーン',v:'#5d6e52'},{n:'ネイビー',v:'#31435c'},{n:'アイボリー',v:'#d8cbb4'}]
 };
-const WOOD_T=['t4','t6','t2','high','round','counter','reg','wall'];
-const FAB_T=['t4','t6','t2','high','round','counter','sofa'];
+const WOOD_T=['t4','t6','t2','high','round','counter','reg','wall','poker'];
+const FAB_T=['t4','t6','t2','high','round','counter','sofa','poker'];
 const LEG_T=['t4','t6','t2','high','round'];
 const woodOf=it=>(it.fin&&it.fin.wood)||(S.style?S.style.c.wood:'#b08655');
 const fabricOf=it=>(it.fin&&it.fin.fab)||(S.style?S.style.c.fabric:'#8a8580');
@@ -850,6 +851,9 @@ function chairsFor(it){
   }else if(t==='round'){
     for(let k=0;k<3;k++){const a=(90+k*120)*Math.PI/180;
       out.push({lx:Math.cos(a)*(w/2+230),ly:Math.sin(a)*(w/2+230)})}
+  }else if(t==='poker'){
+    [-600,0,600].forEach(lx=>{out.push({lx,ly:-h/2-250});out.push({lx,ly:h/2+250})});
+    out.push({lx:-w/2-250,ly:0});out.push({lx:w/2+250,ly:0});
   }else if(t==='counter'){
     const L=Math.max(w,h),m=Math.floor(L/600);
     for(let i=0;i<m;i++){
@@ -946,6 +950,17 @@ function renderEd(){
       const ly=-h/2+2760;
       ctx.strokeStyle='#f5d76e';ctx.lineWidth=lw*1.6;
       ctx.beginPath();ctx.moveTo(-w/2+40,ly);ctx.lineTo(w/2-40,ly);ctx.stroke();
+    }else if(t==='poker'){
+      // ポーカー台：ウッドレール＋グリーンフェルトのオーバル
+      ctx.fillStyle=woodOf(it);
+      ctx.beginPath();ctx.ellipse(0,0,w/2,h/2,0,0,7);ctx.fill();
+      ctx.strokeStyle='#4a453f';ctx.stroke();
+      ctx.fillStyle='#2e6b4f';
+      ctx.beginPath();ctx.ellipse(0,0,w/2-130,h/2-130,0,0,7);ctx.fill();
+      ctx.fillStyle=fabricOf(it);ctx.strokeStyle='#4a453f';
+      chairsFor(it).forEach(chp=>{
+        ctx.beginPath();ctx.arc(chp.lx,chp.ly,185,0,7);ctx.fill();ctx.stroke();
+      });
     }else if(CAT[t].kit){
       ctx.fillStyle='#e2e3e5';ctx.fillRect(-w/2,-h/2,w,h);
       ctx.strokeStyle='#8a8f94';ctx.strokeRect(-w/2,-h/2,w,h);
@@ -1177,6 +1192,13 @@ function thumb(type){
     x.fillStyle='#111';x.fillRect(-325,-d.h/2,650,574);
     x.beginPath();x.arc(0,-d.h/2+287,195,0,7);x.strokeStyle='#c96f2c';x.stroke();
     x.strokeStyle='#f5d76e';x.beginPath();x.moveTo(-d.w/2+60,-d.h/2+2760);x.lineTo(d.w/2-60,-d.h/2+2760);x.stroke();
+  }else if(t==='poker'){
+    x.fillStyle='#a97f4f';x.beginPath();x.ellipse(0,0,d.w/2,d.h/2,0,0,7);x.fill();
+    x.fillStyle='#2e6b4f';x.beginPath();x.ellipse(0,0,d.w/2-140,d.h/2-140,0,0,7);x.fill();
+    x.fillStyle='#6f6a72';
+    chairsFor({type:'poker',w:d.w,h:d.h}).forEach(c=>{
+      x.beginPath();x.arc(c.lx,c.ly,185,0,7);x.fill();
+    });
   }else if(CAT[t].kit){
     x.fillStyle='#e2e3e5';x.fillRect(-d.w/2,-d.h/2,d.w,d.h);
     x.strokeStyle='#8a8f94';x.strokeRect(-d.w/2,-d.h/2,d.w,d.h);
@@ -1223,7 +1245,7 @@ function addItem(t){
   syncSel();render3D();updateAll();animFlash();
 }
 const PAL_GROUPS=[
- {t:'客席・ダーツ',k:['t2','t4','t6','high','round','counter','sofa','dart']},
+ {t:'客席・ダーツ',k:['t2','t4','t6','high','round','counter','sofa','dart','poker']},
  {t:'厨房・設備（恵比寿基本寸法）',k:['kitchen','fridge','freezer','ice','dfridge','sink2','sink1','work','shelf','reg']},
  {t:'建築・その他',k:['storage','wc','door','door2','wall','swall','pillar','beam']}
 ];
@@ -1536,6 +1558,30 @@ function buildScene(){
         addBox(P,p.x,p.y,rot,300,300,700,760,fc);
       });
       lights.push({x:cx,y:cy,z:Math.min(H-260,2400),r:150,c:'#ffe2ae',pend:1,rot,w});
+    }else if(t==='poker'){
+      // ポーカー台：オーバル天板（レール＋フェルト）を16角形で近似
+      const rd2=rot*Math.PI/180,cs2=Math.cos(rd2),sn2=Math.sin(rd2);
+      const oval=(rw,rh,z)=>{const pts=[];for(let k=0;k<16;k++){
+        const a=k/16*2*Math.PI,lx=Math.cos(a)*rw,ly=Math.sin(a)*rh;
+        pts.push({x:cx+lx*cs2-ly*sn2,y:cy+lx*sn2+ly*cs2,z});}return pts};
+      const pw=woodOf(it),pf=fabricOf(it);
+      [[-w/4,0],[w/4,0]].forEach(([lx,ly])=>{
+        const p=loc2w(it,lx,ly);addBox(P,p.x,p.y,rot,500,400,0,720,'#2a2724');
+      });
+      addBox(P,cx,cy,rot,w*.8,h*.75,720,775,shade(pw,.85));
+      P.push({pts:oval(w/2,h/2,780),col:pw,n:{x:0,y:0,z:1}});
+      P.push({pts:oval(w/2-130,h/2-130,788),col:'#2e6b4f',n:{x:0,y:0,z:1}});
+      chairsFor(it).forEach(chp=>{
+        [[-140,-140],[140,-140],[140,140],[-140,140]].forEach(([ox,oy])=>{
+          const q=loc2w(it,chp.lx+ox,chp.ly+oy);addBox(P,q.x,q.y,rot,36,36,0,430,'#2b2926');
+        });
+        const p=loc2w(it,chp.lx,chp.ly);
+        addBox(P,p.x,p.y,rot,380,380,430,490,pf);
+        const bo=Math.abs(chp.ly)>Math.abs(chp.lx)?{x:0,y:Math.sign(chp.ly)*175}:{x:Math.sign(chp.lx)*175,y:0};
+        const bp=loc2w(it,chp.lx+bo.x,chp.ly+bo.y);
+        addBox(P,bp.x,bp.y,rot,Math.abs(bo.y)>0?380:55,Math.abs(bo.y)>0?55:380,490,860,shade(pf,.85));
+      });
+      lights.push({x:cx,y:cy,z:Math.min(H-300,1900),r:140,c:'#ffe2ae',pend:1});
     }else if(CAT[t].kit){
       // 厨房機器（恵比寿基本寸法）
       const col=t==='shelf'?'#9aa0a6':(t==='sink1'||t==='sink2'||t==='work')?'#b6bcc2':'#cfd1d5';
