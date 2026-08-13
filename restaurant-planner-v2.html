@@ -854,11 +854,12 @@ function chairsFor(it){
     for(let k=0;k<3;k++){const a=(90+k*120)*Math.PI/180;
       out.push({lx:Math.cos(a)*(w/2+230),ly:Math.sin(a)*(w/2+230)})}
   }else if(t==='poker'||t==='poker10'){
-    // 上辺4席、下辺は中央のディーラー席を空けて配置、両端1席ずつ
-    [-900,-300,300,900].forEach(lx=>out.push({lx,ly:-h/2-250}));
-    (t==='poker10'?[-900,-300,300,900]:[-650,650]).forEach(lx=>out.push({lx,ly:h/2+250}));
-    out.push({lx:-w/2-250,ly:0});out.push({lx:w/2+250,ly:0});
-    out.push({lx:0,ly:h/2+230,dealer:true});   // ディーラー席
+    // 楕円の周に沿って等間隔配置。先頭（下辺中央）がディーラー席
+    const n=(t==='poker10'?10:8)+1;
+    for(let k=0;k<n;k++){
+      const a=(90+k*360/n)*Math.PI/180;
+      out.push({lx:Math.cos(a)*(w/2+240),ly:Math.sin(a)*(h/2+240),dealer:k===0});
+    }
   }else if(t==='counter'){
     const L=Math.max(w,h),m=Math.floor(L/600);
     for(let i=0;i<m;i++){
