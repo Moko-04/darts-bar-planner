@@ -256,6 +256,18 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
       <div class="block"><h3>売上シミュレーション</h3><div id="salesTable"></div></div>
     </div>
 
+    <div class="block">
+      <h3>投資・収支シミュレーション</h3>
+      <p class="lead" style="margin:-6px 0 14px">席数はレイアウトから自動で反映されます。金額はすべて税抜です。</p>
+      <div class="form" id="bizForm" style="margin-bottom:18px"></div>
+      <div class="noprint" style="margin-bottom:16px">
+        <button class="btn sm ghost" id="bizFromLayout">▶ レイアウトから想定月商を試算</button>
+        <button class="btn sm ghost" id="bizReset">初期値に戻す</button>
+      </div>
+      <div id="bizOut"></div>
+    </div>
+    <div class="block"><h3>既存店の実績（比較用）</h3><div id="refTable"></div></div>
+
     <div class="block"><h3 id="moodTitle">素材ボード</h3><div class="mood" id="moodBox"></div></div>
     <div class="two">
       <div class="block"><h3>配色パレット</h3><div id="palTable"></div></div>
@@ -442,6 +454,77 @@ function seatsOf(it){
   if(t==='sofa')return Math.floor(Math.max(it.w,it.h)/550);
   return CAT[t].seats||0;
 }
+/* ================= 投資・収支シミュレーション ================= */
+/* 既存店の実績（社内データ） */
+const EXISTING_STORES=[
+ {name:'神楽坂',tsubo:37,   rent:800000, initialCost:34400000,propertyCost:10400000,interior:18500000,fixtures:3000000,signage:1000000,design:500000,supplies:1000000,depreciation:24000000},
+ {name:'高円寺',tsubo:38,   rent:622009, initialCost:32586117,propertyCost:8086117, interior:19000000,fixtures:3000000,signage:1000000,design:500000,supplies:1000000,depreciation:24500000},
+ {name:'水道橋',tsubo:48.11,rent:1145000,initialCost:44440000,propertyCost:14885000,interior:24055000,fixtures:3000000,signage:1000000,design:500000,supplies:1000000,depreciation:29555000},
+ {name:'茅場町',tsubo:34.5, rent:585000, initialCost:30355000,propertyCost:7605000, interior:17250000,fixtures:3000000,signage:1000000,design:500000,supplies:1000000,depreciation:22750000},
+ {name:'大塚',  tsubo:38.8, rent:574240, initialCost:32365120,propertyCost:7465120, interior:19400000,fixtures:3000000,signage:1000000,design:500000,supplies:1000000,depreciation:24900000}
+];
+/* 入力項目（キー, ラベル, 単位, 初期値, 刻み） */
+const BIZF=[
+ ['tsubo','坪数','坪',38,0.1],
+ ['rent','家賃（月額）','円',1700000,10000],
+ ['rentRatio','家賃比率の目標','%',12,0.5],
+ ['brokerage','仲介手数料','ヶ月',1,0.5],
+ ['deposit','敷金','ヶ月',12,1],
+ ['reikin','礼金','ヶ月',1,0.5],
+ ['guarantee','保証料','ヶ月',1,0.5],
+ ['interiorPerTsubo','内装費／坪','円',500000,10000],
+ ['fixtures','什器','円',3000000,100000],
+ ['signage','看板','円',1000000,100000],
+ ['designFee','設計費','円',500000,100000],
+ ['storeSup','備品','円',1000000,100000],
+ ['monthlySales','想定月商','円',14166667,100000],
+ ['costRatio','原価率','%',10,0.5],
+ ['laborRatio','人件費率','%',38,0.5],
+ ['adCost','広告費（月）','円',100000,10000],
+ ['otherFixed','その他固定費（月）','円',600000,10000],
+ ['corpTaxRate','法人税率','%',34,1]
+];
+const yen=n=>(n==null||!isFinite(n))?'—':Math.round(n).toLocaleString('ja-JP');
+const pct1=n=>(n==null||!isFinite(n))?'—':(n*100).toFixed(1)+'%';
+function computeBiz(seats){
+  const b=S.biz,g=k=>+b[k]||0;
+  const tsubo=g('tsubo'),rent=g('rent');
+  const rentRatio=g('rentRatio')/100,costRatio=g('costRatio')/100;
+  const laborRatio=g('laborRatio')/100,taxRate=g('corpTaxRate')/100;
+  const sales=g('monthlySales'),unit=g('price');
+  const tsuboUnit    = tsubo>0? rent/tsubo : 0;                 // 坪単価
+  const targetSales  = rentRatio>0? rent/rentRatio : 0;         // 家賃比率から見た必要月商
+  const kpiPerTsubo  = tsubo>0? targetSales/tsubo : 0;
+  const propertyCost = rent*(g('brokerage')+g('deposit')+g('reikin')+g('guarantee'));
+  const interiorCost = g('interiorPerTsubo')*tsubo;
+  const otherInit    = g('fixtures')+g('signage')+g('designFee')+g('storeSup');
+  const totalInitial = propertyCost+interiorCost+otherInit;
+  const depBase      = interiorCost+otherInit;                  // 減価償却の対象
+  const depMonthly   = depBase*0.01;                            // 月あたり1%
+  const costOfGoods  = sales*costRatio;
+  const grossProfit  = sales-costOfGoods;
+  const laborCost    = sales*laborRatio;
+  const otherExpenses= rent+depMonthly+g('otherFixed');
+  const sgaTotal     = laborCost+g('adCost')+otherExpenses;
+  const operatingProfit=grossProfit-sgaTotal;
+  const afterTaxProfit = operatingProfit>0? operatingProfit*(1-taxRate) : operatingProfit;
+  const recoveryMonths = afterTaxProfit>0? totalInitial/afterTaxProfit : Infinity;
+  const recoveryPreTax = operatingProfit>0? totalInitial/operatingProfit : Infinity;
+  const laborShare   = grossProfit>0? laborCost/grossProfit : 0; // 労働分配率
+  const dailySales   = sales/30;
+  const salesPerTurn = seats*unit;
+  const turnsNeeded  = salesPerTurn>0? dailySales/salesPerTurn : 0;
+  // 30ヶ月で回収するために必要な月商
+  const marginRate   = 1-costRatio-laborRatio;
+  const requiredOP30 = taxRate<1? (totalInitial/30)/(1-taxRate) : Infinity;
+  const fixedTotal   = g('adCost')+rent+depMonthly+g('otherFixed');
+  const salesFor30   = marginRate>0? (requiredOP30+fixedTotal)/marginRate : Infinity;
+  return{tsubo,rent,sales,unit,seats,tsuboUnit,targetSales,kpiPerTsubo,propertyCost,interiorCost,
+    otherInit,totalInitial,depBase,depMonthly,costOfGoods,grossProfit,laborCost,otherExpenses,
+    sgaTotal,operatingProfit,afterTaxProfit,recoveryMonths,recoveryPreTax,laborShare,
+    dailySales,salesPerTurn,turnsNeeded,salesFor30,rentRatioActual:sales>0?rent/sales:0};
+}
+
 /* 仕上げ（家具ごとに上書きできる） */
 const FIN={
  woods:[{n:'ライトオーク',v:'#c9a87c'},{n:'ナチュラル',v:'#b08655'},{n:'ウォールナット',v:'#6b4a30'},
@@ -483,6 +566,25 @@ function goto(n){
   if(n===2){sizeCanvases();fitView();renderEd();render3D();updateAll();}
 }
 $('price').value=S.genre.price;$('turns').value=S.genre.turns;
+function ensureBiz(){
+  BIZF.forEach(([k,,,def])=>{if(S.biz[k]===undefined||S.biz[k]===null)S.biz[k]=def});
+  BIZF.forEach(([k])=>{if($('bz_'+k))$('bz_'+k).value=S.biz[k]});
+}
+ensureBiz();
+$('bizForm').innerHTML=BIZF.map(([k,lb,u,,st])=>
+  `<div><label class="f">${lb} <span>${u}</span></label>
+   <input type="number" id="bz_${k}" step="${st}" value="${S.biz[k]}"></div>`).join('');
+BIZF.forEach(([k])=>{
+  $('bz_'+k).addEventListener('change',e=>{S.biz[k]=+e.target.value||0;updateAll()});
+});
+$('bizFromLayout').onclick=()=>{
+  const seats=S.items.reduce((s,i)=>s+seatsOf(i),0);
+  S.biz.monthlySales=Math.round(seats*.7*S.biz.turns*S.biz.price*30);
+  $('bz_monthlySales').value=S.biz.monthlySales;updateAll();
+};
+$('bizReset').onclick=()=>{
+  BIZF.forEach(([k,,,def])=>{S.biz[k]=def;$('bz_'+k).value=def});updateAll();
+};
 [['width','m'],['depth','m'],['ceil','m'],['aisle','mm']].forEach(([id,u])=>{
   const el=$(id),out=$(id+'V'),f=()=>out.textContent=el.value+u;
   el.addEventListener('input',f);f();
@@ -512,6 +614,8 @@ $('n2').onclick=()=>{
     S.room.W=+$('width').value*1000;S.room.D=+$('depth').value*1000;S.room.aisle=+$('aisle').value;
     S.bg=null;
   }
+  S.biz.tsubo=+((S.room.W*S.room.D/1e6)/3.3058).toFixed(1);   // 売場面積から坪数を自動計算
+  ensureBiz();
   if(!S.bg&&S.items.length===0)seedAuto();
   if(S.bg&&!S.items.some(i=>i.type==='door'))S.items.push(mk('door',S.room.W/2,S.room.D-150));
   if(!S.projId){
@@ -1609,7 +1713,7 @@ $('projName').onchange=e=>{S.projName=e.target.value.trim()||'物件';autosave()
 async function restoreProject(d,id){
   S.genre=GENRES.find(g=>g.id===d.genre)||S.genre;
   S.style=STYLES.find(s=>s.id===d.style)||S.style;
-  S.room=d.room;S.biz=d.biz;S.items=d.items||[];
+  S.room=d.room;S.biz=d.biz||{};S.items=d.items||[];ensureBiz();
   S.idc=Math.max(0,...S.items.map(i=>i.id),0)+1;S.sel=null;S.undo=[];
   S.projId=id||('p'+Date.now().toString(36));
   S.projName=d.name||'物件';
@@ -2119,7 +2223,83 @@ function updateAll(){
     <tr><td>1日の売上</td><td class="num">${Math.round(seats*.7*S.biz.turns*S.biz.price).toLocaleString()} 円</td></tr>
     <tr><td><b>月商（30日営業）</b></td><td class="num"><b>${mon} 万円</b></td></tr></table>
     <p style="font-size:11.5px;color:var(--sub);margin:8px 0 0">${darts?'※ダーツはゲーム売上（1人あたり500〜1,500円/滞在）が別途上乗せになります。':''}</p>`;
+  renderBiz(seats);
   autosave();
+}
+function renderBiz(seats){
+  if(!$('bizOut'))return;
+  const r=computeBiz(seats);
+  const row=(l,v,strong)=>`<tr><td>${strong?'<b>'+l+'</b>':l}</td><td class="num">${strong?'<b>'+v+'</b>':v}</td></tr>`;
+  const judge=(ok,warn,txt)=>`<span style="color:${ok?'var(--accent)':(warn?'var(--warn)':'var(--bad)')};font-weight:700">${txt}</span>`;
+  const recOK=r.recoveryMonths<=30,recWarn=r.recoveryMonths<=42;
+  const rentOK=r.rentRatioActual<=0.12,rentWarn=r.rentRatioActual<=0.15;
+  const laborOK=r.laborShare<=0.5,laborWarn=r.laborShare<=0.6;
+  $('bizOut').innerHTML=`
+  <div class="kpis" style="margin-bottom:16px">
+    <div class="kpi"><div class="l">初期投資 合計</div><div class="v">${yen(r.totalInitial/1e4)}<small>万円</small></div></div>
+    <div class="kpi"><div class="l">営業利益（月）</div><div class="v">${yen(r.operatingProfit/1e4)}<small>万円</small></div></div>
+    <div class="kpi"><div class="l">税引後利益（月）</div><div class="v">${yen(r.afterTaxProfit/1e4)}<small>万円</small></div></div>
+    <div class="kpi"><div class="l">投資回収</div><div class="v">${isFinite(r.recoveryMonths)?yen(r.recoveryMonths):'—'}<small>ヶ月</small></div></div>
+    <div class="kpi"><div class="l">必要回転数／日</div><div class="v">${r.turnsNeeded?r.turnsNeeded.toFixed(2):'—'}<small>回</small></div></div>
+  </div>
+  <div class="two">
+    <div>
+      <table>
+        <tr><th colspan="2">初期投資</th></tr>
+        ${row('物件取得費（'+(+S.biz.brokerage+ +S.biz.deposit+ +S.biz.reikin+ +S.biz.guarantee)+'ヶ月分）',yen(r.propertyCost)+' 円')}
+        ${row('内装費（'+yen(S.biz.interiorPerTsubo)+'円 × '+r.tsubo+'坪）',yen(r.interiorCost)+' 円')}
+        ${row('什器・看板・設計・備品',yen(r.otherInit)+' 円')}
+        ${row('初期投資 合計',yen(r.totalInitial)+' 円',1)}
+        ${row('うち減価償却対象',yen(r.depBase)+' 円')}
+        ${row('坪単価（家賃）',yen(r.tsuboUnit)+' 円/坪')}
+      </table>
+    </div>
+    <div>
+      <table>
+        <tr><th colspan="2">月次損益</th></tr>
+        ${row('売上（税抜）',yen(r.sales)+' 円')}
+        ${row('原価（'+S.biz.costRatio+'%）','▲ '+yen(r.costOfGoods)+' 円')}
+        ${row('売上総利益',yen(r.grossProfit)+' 円',1)}
+        ${row('人件費（'+S.biz.laborRatio+'%）','▲ '+yen(r.laborCost)+' 円')}
+        ${row('広告費','▲ '+yen(S.biz.adCost)+' 円')}
+        ${row('家賃','▲ '+yen(r.rent)+' 円')}
+        ${row('減価償却（月1%）','▲ '+yen(r.depMonthly)+' 円')}
+        ${row('その他固定費','▲ '+yen(S.biz.otherFixed)+' 円')}
+        ${row('営業利益',yen(r.operatingProfit)+' 円',1)}
+        ${row('税引後利益（税率'+S.biz.corpTaxRate+'%）',yen(r.afterTaxProfit)+' 円',1)}
+      </table>
+    </div>
+  </div>
+  <table style="margin-top:16px">
+    <tr><th colspan="3">指標と判定</th></tr>
+    <tr><td>家賃比率</td><td class="num">${pct1(r.rentRatioActual)}</td>
+        <td class="num">${judge(rentOK,rentWarn,rentOK?'良好（12%以下）':(rentWarn?'やや高い（15%以下）':'高すぎ'))}</td></tr>
+    <tr><td>労働分配率（人件費÷粗利）</td><td class="num">${pct1(r.laborShare)}</td>
+        <td class="num">${judge(laborOK,laborWarn,laborOK?'良好（50%以下）':(laborWarn?'やや高い':'高すぎ'))}</td></tr>
+    <tr><td>投資回収（税引後）</td><td class="num">${isFinite(r.recoveryMonths)?yen(r.recoveryMonths)+' ヶ月':'回収不能'}</td>
+        <td class="num">${judge(recOK,recWarn,recOK?'目標30ヶ月以内':(recWarn?'やや長い':'要見直し'))}</td></tr>
+    <tr><td>投資回収（税引前）</td><td class="num">${isFinite(r.recoveryPreTax)?yen(r.recoveryPreTax)+' ヶ月':'—'}</td><td></td></tr>
+    <tr><td><b>30ヶ月で回収するのに必要な月商</b></td><td class="num"><b>${yen(r.salesFor30)} 円</b></td>
+        <td class="num">${r.sales>=r.salesFor30?judge(1,0,'達成'):judge(0,1,'あと '+yen(r.salesFor30-r.sales)+' 円')}</td></tr>
+    <tr><td>家賃比率${S.biz.rentRatio}%から見た必要月商</td><td class="num">${yen(r.targetSales)} 円</td>
+        <td class="num">坪あたり ${yen(r.kpiPerTsubo)} 円</td></tr>
+    <tr><td>1日の売上（30日営業）</td><td class="num">${yen(r.dailySales)} 円</td><td></td></tr>
+    <tr><td>満席1回転の売上（${seats}席 × ${yen(r.unit)}円）</td><td class="num">${yen(r.salesPerTurn)} 円</td>
+        <td class="num">必要回転 ${r.turnsNeeded?r.turnsNeeded.toFixed(2):'—'} 回/日</td></tr>
+  </table>`;
+  // 既存店の実績
+  $('refTable').innerHTML=`<table>
+    <tr><th>店舗</th><th class="num">坪数</th><th class="num">家賃</th><th class="num">坪単価</th>
+        <th class="num">物件取得費</th><th class="num">内装費</th><th class="num">初期投資 合計</th></tr>`+
+    EXISTING_STORES.map(s=>`<tr><td>${s.name}</td><td class="num">${s.tsubo}</td>
+      <td class="num">${yen(s.rent)}</td><td class="num">${yen(s.rent/s.tsubo)}</td>
+      <td class="num">${yen(s.propertyCost)}</td><td class="num">${yen(s.interior)}</td>
+      <td class="num">${yen(s.initialCost)}</td></tr>`).join('')+
+    `<tr style="background:var(--accent-w)"><td><b>今回のプラン</b></td><td class="num"><b>${r.tsubo}</b></td>
+      <td class="num"><b>${yen(r.rent)}</b></td><td class="num"><b>${yen(r.tsuboUnit)}</b></td>
+      <td class="num"><b>${yen(r.propertyCost)}</b></td><td class="num"><b>${yen(r.interiorCost)}</b></td>
+      <td class="num"><b>${yen(r.totalInitial)}</b></td></tr></table>
+    <p style="font-size:11.5px;color:var(--sub);margin:8px 0 0">内装費は坪あたり50万円、什器300万・看板100万・設計50万・備品100万を各店共通の前提としています。</p>`;
 }
 
 /* ================= テイストブロック ================= */
