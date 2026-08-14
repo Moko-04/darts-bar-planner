@@ -262,6 +262,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
       <div class="form" id="bizForm" style="margin-bottom:18px"></div>
       <div class="noprint" style="margin-bottom:16px">
         <button class="btn sm ghost" id="bizFromLayout">▶ レイアウトから想定月商を試算</button>
+        <button class="btn sm ghost" id="bizAutoTsubo">⟳ 坪数を売場面積から再計算</button>
         <button class="btn sm ghost" id="bizReset">初期値に戻す</button>
       </div>
       <div id="bizOut"></div>
@@ -465,7 +466,7 @@ const EXISTING_STORES=[
 ];
 /* 入力項目（キー, ラベル, 単位, 初期値, 刻み） */
 const BIZF=[
- ['tsubo','坪数','坪',38,0.1],
+ ['tsubo','坪数（売場面積から自動）','坪',38,0.1],
  ['rent','家賃（月額）','円',1700000,10000],
  ['rentRatio','家賃比率の目標','%',12,0.5],
  ['brokerage','仲介手数料','ヶ月',1,0.5],
@@ -575,8 +576,20 @@ $('bizForm').innerHTML=BIZF.map(([k,lb,u,,st])=>
   `<div><label class="f">${lb} <span>${u}</span></label>
    <input type="number" id="bz_${k}" step="${st}" value="${S.biz[k]}"></div>`).join('');
 BIZF.forEach(([k])=>{
-  $('bz_'+k).addEventListener('change',e=>{S.biz[k]=+e.target.value||0;updateAll()});
+  $('bz_'+k).addEventListener('change',e=>{
+    S.biz[k]=+e.target.value||0;
+    if(k==='tsubo')S.biz.tsuboManual=1;      // 手入力したら自動算出をやめる
+    updateAll();
+  });
 });
+// 売場面積（間口×奥行）から坪数を算出する
+function tsuboFromRoom(){return +((S.room.W*S.room.D/1e6)/3.3058).toFixed(1)}
+function syncTsubo(){
+  if(S.biz.tsuboManual)return;
+  S.biz.tsubo=tsuboFromRoom();
+  if($('bz_tsubo'))$('bz_tsubo').value=S.biz.tsubo;
+}
+$('bizAutoTsubo').onclick=()=>{S.biz.tsuboManual=0;syncTsubo();updateAll()};
 $('bizFromLayout').onclick=()=>{
   const seats=S.items.reduce((s,i)=>s+seatsOf(i),0);
   S.biz.monthlySales=Math.round(seats*.7*S.biz.turns*S.biz.price*30);
@@ -614,8 +627,7 @@ $('n2').onclick=()=>{
     S.room.W=+$('width').value*1000;S.room.D=+$('depth').value*1000;S.room.aisle=+$('aisle').value;
     S.bg=null;
   }
-  S.biz.tsubo=+((S.room.W*S.room.D/1e6)/3.3058).toFixed(1);   // 売場面積から坪数を自動計算
-  ensureBiz();
+  ensureBiz();S.biz.tsuboManual=0;syncTsubo();   // 売場面積から坪数を自動計算
   if(!S.bg&&S.items.length===0)seedAuto();
   if(S.bg&&!S.items.some(i=>i.type==='door'))S.items.push(mk('door',S.room.W/2,S.room.D-150));
   if(!S.projId){
@@ -2228,7 +2240,11 @@ function updateAll(){
 }
 function renderBiz(seats){
   if(!$('bizOut'))return;
+  syncTsubo();
   const r=computeBiz(seats);
+  const areaM2=S.room.W*S.room.D/1e6;
+  const boh=S.items.filter(i=>i.type==='kitchen'||i.type==='storage'||i.type==='wc')
+    .reduce((s,i)=>s+i.w*i.h/1e6,0);
   const row=(l,v,strong)=>`<tr><td>${strong?'<b>'+l+'</b>':l}</td><td class="num">${strong?'<b>'+v+'</b>':v}</td></tr>`;
   const judge=(ok,warn,txt)=>`<span style="color:${ok?'var(--accent)':(warn?'var(--warn)':'var(--bad)')};font-weight:700">${txt}</span>`;
   const recOK=r.recoveryMonths<=30,recWarn=r.recoveryMonths<=42;
@@ -2283,6 +2299,12 @@ function renderBiz(seats){
         <td class="num">${r.sales>=r.salesFor30?judge(1,0,'達成'):judge(0,1,'あと '+yen(r.salesFor30-r.sales)+' 円')}</td></tr>
     <tr><td>家賃比率${S.biz.rentRatio}%から見た必要月商</td><td class="num">${yen(r.targetSales)} 円</td>
         <td class="num">坪あたり ${yen(r.kpiPerTsubo)} 円</td></tr>
+    <tr><td>売場面積（間口${(S.room.W/1000).toFixed(1)}m × 奥行${(S.room.D/1000).toFixed(1)}m）</td>
+        <td class="num">${areaM2.toFixed(1)} ㎡ ＝ ${r.tsubo} 坪</td>
+        <td class="num">${S.biz.tsuboManual?'<span style="color:var(--warn)">坪数は手入力中</span>':'自動算出'}</td></tr>
+    <tr><td>うち客席エリア（カウンター内・倉庫・トイレを除く）</td>
+        <td class="num">${(areaM2-boh).toFixed(1)} ㎡ ＝ ${((areaM2-boh)/3.3058).toFixed(1)} 坪</td>
+        <td class="num">坪あたり売上 ${yen(areaM2-boh>0?r.sales/((areaM2-boh)/3.3058):0)} 円</td></tr>
     <tr><td>1日の売上（30日営業）</td><td class="num">${yen(r.dailySales)} 円</td><td></td></tr>
     <tr><td>満席1回転の売上（${seats}席 × ${yen(r.unit)}円）</td><td class="num">${yen(r.salesPerTurn)} 円</td>
         <td class="num">必要回転 ${r.turnsNeeded?r.turnsNeeded.toFixed(2):'—'} 回/日</td></tr>
