@@ -9,7 +9,14 @@
 <script>
 /* Firebase の接続設定。ここに値を入れておくと、どのPCでも設定なしで使えます。
    空のままでも、画面右上の⚙から貼り付けて利用できます（その端末にのみ保存）。 */
-window.FIREBASE_CONFIG=null;
+window.FIREBASE_CONFIG={
+  apiKey:"AIzaSyDLsKf7Y1Seg1nbSs9cwQzB2mfH9q6XBsM",
+  authDomain:"darts-bar-planner.firebaseapp.com",
+  projectId:"darts-bar-planner",
+  storageBucket:"darts-bar-planner.firebasestorage.app",
+  messagingSenderId:"912169577339",
+  appId:"1:912169577339:web:3b33903871a0df05622bde"
+};
 </script>
 <script type="module">
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
