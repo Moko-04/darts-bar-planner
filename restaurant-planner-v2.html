@@ -6,6 +6,91 @@
 <title>店舗造作作成ソフト ─ 図面読込・自由レイアウト・3Dパース</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>try{pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'}catch(e){}</script>
+<script>
+/* Firebase の接続設定。ここに値を入れておくと、どのPCでも設定なしで使えます。
+   空のままでも、画面右上の⚙から貼り付けて利用できます（その端末にのみ保存）。 */
+window.FIREBASE_CONFIG=null;
+</script>
+<script type="module">
+import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import{getAuth,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged}
+  from'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import{getFirestore,doc,setDoc,getDoc,deleteDoc,collection,getDocs}
+  from'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+const CFG_KEY='dartsPlanner.fbConfig';
+function readCfg(){
+  if(window.FIREBASE_CONFIG&&window.FIREBASE_CONFIG.apiKey)return window.FIREBASE_CONFIG;
+  try{const s=localStorage.getItem(CFG_KEY);return s?JSON.parse(s):null}catch(e){return null}
+}
+let app=null,auth=null,db=null,user=null;
+const listeners=[];
+function emit(){listeners.forEach(f=>{try{f(user)}catch(e){}})}
+
+const Cloud={
+  configured(){return !!readCfg()},
+  saveConfig(json){
+    const c=JSON.parse(json);
+    if(!c.apiKey||!c.projectId)throw new Error('apiKey と projectId が必要です');
+    localStorage.setItem(CFG_KEY,JSON.stringify(c));
+    return Cloud.init();
+  },
+  clearConfig(){localStorage.removeItem(CFG_KEY);location.reload()},
+  init(){
+    const c=readCfg();
+    if(!c)return false;
+    if(app)return true;
+    app=initializeApp(c);auth=getAuth(app);db=getFirestore(app);
+    onAuthStateChanged(auth,u=>{user=u;emit()});
+    return true;
+  },
+  onUser(f){listeners.push(f);f(user)},
+  get user(){return user},
+  async signIn(){
+    if(!Cloud.init())throw new Error('Firebase の設定がありません');
+    await signInWithPopup(auth,new GoogleAuthProvider());
+  },
+  async signOut(){if(auth)await signOut(auth)},
+  async saveProject(id,meta,data){
+    if(!user)throw new Error('未ログイン');
+    await setDoc(doc(db,'users',user.uid,'projects',id),
+      {...meta,uid:user.uid,updated:Date.now(),data:JSON.stringify(data)});
+  },
+  async listProjects(){
+    if(!user)return[];
+    const snap=await getDocs(collection(db,'users',user.uid,'projects'));
+    const out=[];snap.forEach(d=>{const v=d.data();out.push({id:d.id,name:v.name,up:v.updated,seats:v.seats})});
+    return out.sort((a,b)=>(b.up||0)-(a.up||0));
+  },
+  async loadProject(id){
+    if(!user)throw new Error('未ログイン');
+    const d=await getDoc(doc(db,'users',user.uid,'projects',id));
+    if(!d.exists())throw new Error('見つかりません');
+    return JSON.parse(d.data().data);
+  },
+  async deleteProject(id){
+    if(!user)throw new Error('未ログイン');
+    await deleteDoc(doc(db,'users',user.uid,'projects',id));
+  },
+  /* 共有：リンクを知っている人が開ける読み取り用のコピーを作る */
+  async createShare(meta,data){
+    if(!user)throw new Error('未ログイン');
+    const id=(Date.now().toString(36)+Math.random().toString(36).slice(2,10));
+    await setDoc(doc(db,'shares',id),
+      {...meta,ownerUid:user.uid,created:Date.now(),data:JSON.stringify(data)});
+    return id;
+  },
+  async loadShare(id){
+    if(!Cloud.init())throw new Error('Firebase の設定がありません');
+    const d=await getDoc(doc(db,'shares',id));
+    if(!d.exists())throw new Error('共有データが見つかりません（削除された可能性があります）');
+    return{meta:{name:d.data().name},data:JSON.parse(d.data().data)};
+  }
+};
+window.Cloud=Cloud;
+Cloud.init();
+window.dispatchEvent(new Event('cloud-ready'));
+</script>
 <style>
 :root{
   --bg:#f6f4f1; --panel:#fff; --ink:#232025; --sub:#6f6a72;
@@ -121,8 +206,28 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
 </head>
 <body>
 <header>
-  <h1>店舗造作作成ソフト <span style="font-size:11px;background:var(--accent);color:#fff;border-radius:5px;padding:2px 7px;vertical-align:2px">v2</span></h1>
-  <p>図面PDFを下絵に、レイアウトを自由に編集し、3Dパースで確認できます</p>
+  <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+    <div style="flex:1;min-width:220px">
+      <h1>店舗造作作成ソフト <span style="font-size:11px;background:var(--accent);color:#fff;border-radius:5px;padding:2px 7px;vertical-align:2px">v2</span></h1>
+      <p>図面PDFを下絵に、レイアウトを自由に編集し、3Dパースで確認できます</p>
+    </div>
+    <div id="cloudBar" class="noprint" style="display:flex;align-items:center;gap:8px;font-size:12.5px">
+      <span id="cloudSt" style="color:var(--sub)">クラウド未接続</span>
+      <button class="btn sm ghost" id="signInB">Googleでログイン</button>
+      <button class="btn sm ghost hide" id="signOutB">ログアウト</button>
+      <button class="btn sm ghost" id="cloudCfgB" title="Firebaseの接続設定">⚙</button>
+    </div>
+  </div>
+  <div id="cloudCfg" class="hide" style="margin-top:12px;padding:14px 16px;background:#faf9f8;border:1px solid var(--line);border-radius:12px">
+    <label class="f">Firebase の接続設定（firebaseConfig を貼り付けて保存）</label>
+    <textarea id="cfgTxt" style="width:100%;height:120px;font-family:monospace;font-size:12px;padding:9px;border:1.5px solid var(--line);border-radius:9px" placeholder='{ "apiKey": "...", "authDomain": "xxx.firebaseapp.com", "projectId": "xxx", "storageBucket": "...", "messagingSenderId": "...", "appId": "..." }'></textarea>
+    <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+      <button class="btn sm" id="cfgSave">保存して接続</button>
+      <button class="btn sm ghost" id="cfgClear">設定を消す</button>
+      <span id="cfgSt" style="font-size:11.5px;color:var(--sub)"></span>
+    </div>
+    <p style="font-size:11.5px;color:var(--sub);margin:8px 0 0">Firebase コンソール →「プロジェクトの設定」→「マイアプリ（ウェブ）」に表示される firebaseConfig をそのまま貼り付けてください。この値は公開されても問題ない種類の情報です（アクセス制御は Firestore のルールで行います）。</p>
+  </div>
 </header>
 <div class="wrap">
   <div class="steps" id="steps"></div>
@@ -130,8 +235,12 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
   <!-- STEP1 物件 -->
   <section class="card" id="s2">
     <h2 class="sec">1. 物件情報を入力してください</h2>
+    <div id="cloudLib" class="hide" style="margin:14px 0 12px;padding:14px 16px;background:var(--accent-w);border:1px solid #bcd9d1;border-radius:12px">
+      <label class="f" style="margin-bottom:8px">☁ クラウドの物件（ログイン中のアカウントに紐づき、どのPCからでも開けます）</label>
+      <div id="cloudList" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
     <div id="projLib" class="hide" style="margin:14px 0 20px;padding:14px 16px;background:#faf9f8;border:1px solid var(--line);border-radius:12px">
-      <label class="f" style="margin-bottom:8px">📁 保存済みの物件（自動保存されています）</label>
+      <label class="f" style="margin-bottom:8px">📁 このPCに保存されている物件</label>
       <div id="projList" style="display:flex;flex-direction:column;gap:6px"></div>
     </div>
     <div class="tabs">
@@ -213,6 +322,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
         <label id="bgCtl" class="hide"><input type="checkbox" id="bgV" checked>下絵
           <input type="range" id="bgOp" min="10" max="100" value="55" style="width:80px"></label>
         <span class="sep"></span>
+        <button class="btn sm ghost" id="shareB" title="このプランを相手に送れるリンクを作ります">🔗 共有リンクを作成</button>
         <button class="btn sm ghost" id="saveAsB" title="今の内容を別の物件として複製保存（元の物件はそのまま残ります）">📋 名前を付けて別保存</button>
         <button class="btn sm ghost" id="saveB">💾 ファイル書出</button>
         <button class="btn sm ghost" id="loadB">📂 ファイル読込</button>
@@ -563,7 +673,7 @@ const SECS=['s2','s4'];
 function goto(n){
   S.step=n;SECS.forEach((id,i)=>$(id).classList.toggle('hide',i+1!==n));
   renderSteps();window.scrollTo({top:0,behavior:'smooth'});
-  if(n===1)renderProjLib();
+  if(n===1){renderProjLib();if(typeof renderCloudLib==='function')renderCloudLib()}
   if(n===2){sizeCanvases();fitView();renderEd();render3D();updateAll();}
 }
 $('price').value=S.genre.price;$('turns').value=S.genre.turns;
@@ -1718,6 +1828,7 @@ function autosave(now){
     }
   };
   if(now)run();else saveTimer=setTimeout(run,1200);
+  if(typeof cloudSave==='function')cloudSave(now);
 }
 window.addEventListener('beforeunload',()=>autosave(true));
 document.addEventListener('visibilitychange',()=>{if(document.hidden)autosave(true)});
@@ -2356,6 +2467,120 @@ function renderStyleBlocks(){
     <tr><td>天井高</td><td class="num">${S.room.ceil} m</td></tr></table>
     <p style="font-size:12px;color:var(--sub);margin:8px 0 0">ダーツエリアはボード面を狙って400lx程度のスポットを。客席全体は落として、レーンだけ明るくするとゲームに集中できます。</p>`;
 }
+
+/* ================= クラウド同期（Firebase） ================= */
+/* Firestore は1ドキュメント1MBまで。下絵はクラウド用に圧縮し、収まらない場合は下絵なしで保存する */
+function cloudPayload(){
+  const d=projectData();
+  if(d.bg&&d.bg.png&&S.bg){
+    const img=S.bg.img,max=1200;
+    const sc=Math.min(1,max/Math.max(img.width,img.height));
+    const c=document.createElement('canvas');
+    c.width=Math.max(1,Math.round(img.width*sc));c.height=Math.max(1,Math.round(img.height*sc));
+    c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+    d.bg={mmPerPx:S.bg.mmPerPx/sc,origin:S.bg.origin,opacity:S.bg.opacity,png:c.toDataURL('image/jpeg',.45)};
+  }
+  let s=JSON.stringify(d);
+  if(s.length>900000){d.bg=null;d.bgDropped=1;s=JSON.stringify(d)}
+  return{data:d,tooBig:s.length>900000,dropped:!!d.bgDropped};
+}
+let cloudTimer=null;
+function cloudSave(now){
+  if(!window.Cloud||!Cloud.user||!S.projId||S.step<2)return;
+  clearTimeout(cloudTimer);
+  const run=async()=>{
+    try{
+      const p=cloudPayload();
+      if(p.tooBig){$('saveSt').textContent='⚠ データが大きすぎてクラウド保存できません';return}
+      await Cloud.saveProject(S.projId,
+        {name:S.projName||'物件',seats:S.items.reduce((s,i)=>s+seatsOf(i),0)},p.data);
+      $('saveSt').textContent='☁ クラウド保存 '+new Date().toTimeString().slice(0,5)+(p.dropped?'（下絵は容量超過のため除外）':'');
+    }catch(e){$('saveSt').textContent='⚠ クラウド保存に失敗: '+e.message}
+  };
+  if(now)run();else cloudTimer=setTimeout(run,2500);
+}
+async function renderCloudLib(){
+  if(!window.Cloud||!Cloud.user){$('cloudLib').classList.add('hide');return}
+  $('cloudLib').classList.remove('hide');
+  $('cloudList').innerHTML='<span style="font-size:12px;color:var(--sub)">読み込み中…</span>';
+  try{
+    const ls=await Cloud.listProjects();
+    $('cloudList').innerHTML=ls.length?ls.map(p=>{
+      const d=new Date(p.up||0);
+      const ds=`${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+      return`<div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 12px;font-size:13px">
+        ☁ <b>${p.name||'物件'}</b>
+        <span style="color:var(--sub);font-size:11.5px">${ds} 更新・${p.seats||0}席</span>
+        <span style="flex:1"></span>
+        <button class="btn sm" data-copen="${p.id}">開く</button>
+        <button class="btn sm ghost" data-cdel="${p.id}" style="color:var(--bad)">削除</button>
+      </div>`;
+    }).join(''):'<span style="font-size:12px;color:var(--sub)">まだクラウドに物件がありません。編集すると自動で保存されます。</span>';
+  }catch(e){$('cloudList').innerHTML='<span style="font-size:12px;color:var(--bad)">読み込めませんでした: '+e.message+'</span>'}
+}
+$('cloudList').onclick=async e=>{
+  const o=e.target.dataset.copen,dl=e.target.dataset.cdel;
+  if(o){
+    try{await restoreProject(await Cloud.loadProject(o),o);cloudSave(true)}
+    catch(err){alert('開けませんでした: '+err.message)}
+  }else if(dl){
+    if(!confirm('クラウドからこの物件を削除しますか？'))return;
+    try{await Cloud.deleteProject(dl);renderCloudLib()}catch(err){alert(err.message)}
+  }
+};
+function cloudUI(u){
+  $('cloudSt').textContent=u?('☁ '+(u.email||u.displayName||'ログイン中')):
+    (window.Cloud&&Cloud.configured()?'クラウド未ログイン':'クラウド未設定（⚙から設定）');
+  $('signInB').classList.toggle('hide',!!u);
+  $('signOutB').classList.toggle('hide',!u);
+  if(S.step===1)renderCloudLib();
+}
+$('signInB').onclick=async()=>{
+  try{
+    if(!window.Cloud||!Cloud.configured()){$('cloudCfg').classList.remove('hide');
+      $('cfgSt').textContent='先に Firebase の設定を貼り付けてください';return}
+    await Cloud.signIn();
+  }catch(e){alert('ログインできませんでした: '+e.message)}
+};
+$('signOutB').onclick=()=>Cloud&&Cloud.signOut();
+$('cloudCfgB').onclick=()=>$('cloudCfg').classList.toggle('hide');
+$('cfgSave').onclick=()=>{
+  try{Cloud.saveConfig($('cfgTxt').value.trim());$('cfgSt').textContent='✓ 接続しました。「Googleでログイン」を押してください';cloudUI(Cloud.user)}
+  catch(e){$('cfgSt').textContent='× '+e.message}
+};
+$('cfgClear').onclick=()=>Cloud&&Cloud.clearConfig();
+/* 共有リンク */
+$('shareB').onclick=async()=>{
+  if(!window.Cloud||!Cloud.user){alert('共有リンクの作成にはログインが必要です。画面右上の「Googleでログイン」を押してください。');return}
+  try{
+    $('saveSt').textContent='共有リンクを作成中…';
+    const p=cloudPayload();
+    const id=await Cloud.createShare({name:S.projName||'物件'},p.data);
+    const url=location.origin+location.pathname+'#share='+id;
+    try{await navigator.clipboard.writeText(url)}catch(e){}
+    $('saveSt').textContent='🔗 共有リンクをコピーしました';
+    prompt('このリンクを相手に送ってください（開くと自分の物件としてコピーされ、自由に編集できます）',url);
+  }catch(e){alert('共有リンクを作成できませんでした: '+e.message)}
+};
+async function openShareFromHash(forceId){
+  const id=forceId||(location.hash.match(/share=([A-Za-z0-9]+)/)||[])[1];
+  if(!id||!window.Cloud||!Cloud.configured())return;
+  try{
+    const r=await Cloud.loadShare(id);
+    const d=r.data;d.name=(d.name||'物件')+'（共有）';
+    await restoreProject(d,null);
+    S.projId='p'+Date.now().toString(36);S.projName=d.name;
+    $('projName').value=S.projName;
+    history.replaceState(null,'',location.pathname);
+    autosave(true);
+    $('saveSt').textContent='🔗 共有されたプランを開きました（あなたの物件としてコピー済み）';
+  }catch(e){alert(e.message)}
+}
+window.addEventListener('cloud-ready',()=>{
+  Cloud.onUser(u=>{cloudUI(u);if(u)cloudSave();});
+  openShareFromHash();
+});
+if(window.Cloud){Cloud.onUser(cloudUI);openShareFromHash()}else cloudUI(null);
 
 renderSteps();
 renderProjLib();
