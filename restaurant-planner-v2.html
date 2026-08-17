@@ -20,7 +20,8 @@ window.FIREBASE_CONFIG={
 </script>
 <script type="module">
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import{getAuth,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged}
+import{getAuth,GoogleAuthProvider,signInWithPopup,signInWithRedirect,getRedirectResult,
+  signOut,onAuthStateChanged,browserPopupRedirectResolver}
   from'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import{getFirestore,doc,setDoc,getDoc,deleteDoc,collection,getDocs}
   from'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
@@ -49,13 +50,24 @@ const Cloud={
     if(app)return true;
     app=initializeApp(c);auth=getAuth(app);db=getFirestore(app);
     onAuthStateChanged(auth,u=>{user=u;emit()});
+    // リダイレクト方式で戻ってきた場合の受け取り
+    getRedirectResult(auth,browserPopupRedirectResolver).catch(()=>{});
     return true;
   },
   onUser(f){listeners.push(f);f(user)},
   get user(){return user},
   async signIn(){
     if(!Cloud.init())throw new Error('Firebase の設定がありません');
-    await signInWithPopup(auth,new GoogleAuthProvider());
+    const prov=new GoogleAuthProvider();
+    try{
+      await signInWithPopup(auth,prov,browserPopupRedirectResolver);
+    }catch(e){
+      // ポップアップが塞がれた/閉じられた場合は、同じタブで開くリダイレクト方式に切り替える
+      const fb=['auth/popup-blocked','auth/popup-closed-by-user',
+                'auth/cancelled-popup-request','auth/operation-not-supported-in-this-environment'];
+      if(fb.includes(e&&e.code)){await signInWithRedirect(auth,prov,browserPopupRedirectResolver);return}
+      throw e;
+    }
   },
   async signOut(){if(auth)await signOut(auth)},
   async saveProject(id,meta,data){
@@ -2546,8 +2558,18 @@ $('signInB').onclick=async()=>{
   try{
     if(!window.Cloud||!Cloud.configured()){$('cloudCfg').classList.remove('hide');
       $('cfgSt').textContent='先に Firebase の設定を貼り付けてください';return}
+    $('cloudSt').textContent='ログイン中…';
     await Cloud.signIn();
-  }catch(e){alert('ログインできませんでした: '+e.message)}
+  }catch(e){
+    const c=e&&e.code||'';
+    const msg=c==='auth/unauthorized-domain'
+      ? 'このドメインが Firebase に登録されていません（Authentication →設定→承認済みドメイン）。'
+      : c==='auth/popup-blocked'
+      ? 'ポップアップがブロックされました。アドレスバー右端のブロック表示から許可するか、もう一度お試しください（同じタブで開く方式に切り替わります）。'
+      : (c?c+' / ':'')+(e.message||e);
+    cloudUI(Cloud.user);
+    alert('ログインできませんでした:\n'+msg);
+  }
 };
 $('signOutB').onclick=()=>Cloud&&Cloud.signOut();
 $('cloudCfgB').onclick=()=>$('cloudCfg').classList.toggle('hide');
