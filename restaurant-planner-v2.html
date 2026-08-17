@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>店舗造作作成ソフト ─ 図面読込・自由レイアウト・3Dパース</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>try{pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'}catch(e){}</script>
@@ -227,7 +230,8 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
 <header>
   <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
     <div style="flex:1;min-width:220px">
-      <h1>店舗造作作成ソフト <span style="font-size:11px;background:var(--accent);color:#fff;border-radius:5px;padding:2px 7px;vertical-align:2px">v2</span></h1>
+      <h1>店舗造作作成ソフト <span style="font-size:11px;background:var(--accent);color:#fff;border-radius:5px;padding:2px 7px;vertical-align:2px">v2</span>
+        <span id="buildTag" style="font-size:10px;color:var(--sub);font-weight:400;vertical-align:3px">build 2026-08-17b</span></h1>
       <p>図面PDFを下絵に、レイアウトを自由に編集し、3Dパースで確認できます</p>
     </div>
     <div id="cloudBar" class="noprint" style="display:flex;align-items:center;gap:8px;font-size:12.5px">
