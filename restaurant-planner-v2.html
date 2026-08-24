@@ -719,6 +719,7 @@ BIZF.forEach(([k])=>{
   $('bz_'+k).addEventListener('change',e=>{
     S.biz[k]=+e.target.value||0;
     if(k==='tsubo')S.biz.tsuboManual=1;      // 手入力したら自動算出をやめる
+    if(k==='monthlySales')S.biz.salesManual=1;
     updateAll();
   });
 });
@@ -730,11 +731,7 @@ function syncTsubo(){
   if($('bz_tsubo'))$('bz_tsubo').value=S.biz.tsubo;
 }
 $('bizAutoTsubo').onclick=()=>{S.biz.tsuboManual=0;syncTsubo();updateAll()};
-$('bizFromLayout').onclick=()=>{
-  const seats=S.items.reduce((s,i)=>s+seatsOf(i),0);
-  S.biz.monthlySales=Math.round(seats*.7*S.biz.turns*S.biz.price*30);
-  $('bz_monthlySales').value=S.biz.monthlySales;updateAll();
-};
+$('bizFromLayout').onclick=()=>{S.biz.salesManual=0;updateAll()};
 $('bizReset').onclick=()=>{
   BIZF.forEach(([k,,,def])=>{S.biz[k]=def;$('bz_'+k).value=def});updateAll();
 };
@@ -2420,7 +2417,9 @@ function updateAll(){
   const seats=S.items.reduce((s,i)=>s+seatsOf(i),0);
   const darts=S.items.filter(i=>i.type==='dart').length;
   const per=seats?(total-kitA-stoA)/seats:0;
-  const mon=Math.round(seats*.7*S.biz.turns*S.biz.price*30/1e4);
+  const autoSales=Math.round(seats*.7*S.biz.turns*S.biz.price*30);   // レイアウトからの試算
+  if(!S.biz.salesManual)S.biz.monthlySales=autoSales;                // 手入力していなければ自動追従
+  const mon=Math.round((+S.biz.monthlySales||0)/1e4);
   const kitIt=S.items.filter(i=>i.type==='kitchen');
   const kitMin=kitIt.length?Math.min(...kitIt.map(i=>Math.min(i.w,i.h))):0;
   $('kSeats').innerHTML=seats+'<small>席</small>';
@@ -2472,24 +2471,35 @@ function updateAll(){
     <tr><td>客単価</td><td class="num">${S.biz.price.toLocaleString()} 円</td></tr>
     <tr><td>回転数 / 日</td><td class="num">${S.biz.turns} 回</td></tr>
     <tr><td>満席率（想定）</td><td class="num">70 ％</td></tr>
-    <tr><td>1日の売上</td><td class="num">${Math.round(seats*.7*S.biz.turns*S.biz.price).toLocaleString()} 円</td></tr>
-    <tr><td><b>月商（30日営業）</b></td><td class="num"><b>${mon} 万円</b></td></tr></table>
+    <tr><td>レイアウトからの試算</td><td class="num">${Math.round(autoSales/1e4).toLocaleString()} 万円</td></tr>
+    <tr><td><b>月商（30日営業）</b></td><td class="num">
+      <input type="number" id="salesIn" step="100000" value="${+S.biz.monthlySales||0}"
+        style="width:150px;text-align:right;font-weight:700"> 円</td></tr>
+    <tr><td>1日の売上</td><td class="num">${Math.round((+S.biz.monthlySales||0)/30).toLocaleString()} 円</td></tr>
+    </table>
+    <div class="noprint" style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button class="btn sm ghost" id="salesAutoB">⟳ レイアウトから再計算</button>
+      <span style="font-size:11.5px;color:${S.biz.salesManual?'var(--warn)':'var(--sub)'}">
+        ${S.biz.salesManual?'月商は手入力中（席数を変えても追従しません）':'席数・客単価・回転数から自動計算中'}</span>
+    </div>
     <p style="font-size:11.5px;color:var(--sub);margin:8px 0 0">${darts?'※ダーツはゲーム売上（1人あたり500〜1,500円/滞在）が別途上乗せになります。':''}</p>`;
+  $('salesIn').onchange=e=>{S.biz.monthlySales=+e.target.value||0;S.biz.salesManual=1;
+    if($('bz_monthlySales'))$('bz_monthlySales').value=S.biz.monthlySales;updateAll()};
+  $('salesAutoB').onclick=()=>{S.biz.salesManual=0;updateAll()};
   renderBiz(seats);
   autosave();
 }
 function renderBiz(seats){
   if(!$('bizOut'))return;
   syncTsubo();
+  if($('bz_monthlySales'))$('bz_monthlySales').value=+S.biz.monthlySales||0;
   const r=computeBiz(seats);
   const areaM2=S.room.W*S.room.D/1e6;
-  const boh=S.items.filter(i=>i.type==='kitchen'||i.type==='storage'||i.type==='wc')
-    .reduce((s,i)=>s+i.w*i.h/1e6,0);
   const row=(l,v,strong)=>`<tr><td>${strong?'<b>'+l+'</b>':l}</td><td class="num">${strong?'<b>'+v+'</b>':v}</td></tr>`;
   const judge=(ok,warn,txt)=>`<span style="color:${ok?'var(--accent)':(warn?'var(--warn)':'var(--bad)')};font-weight:700">${txt}</span>`;
   const recOK=r.recoveryMonths<=30,recWarn=r.recoveryMonths<=42;
   const rentOK=r.rentRatioActual<=0.12,rentWarn=r.rentRatioActual<=0.15;
-  const laborOK=r.laborShare<=0.5,laborWarn=r.laborShare<=0.6;
+  const laborOK=r.laborShare<=0.38,laborWarn=r.laborShare<=0.45;
   $('bizOut').innerHTML=`
   <div class="kpis" style="margin-bottom:16px">
     <div class="kpi"><div class="l">初期投資 合計</div><div class="v">${yen(r.totalInitial/1e4)}<small>万円</small></div></div>
@@ -2530,8 +2540,9 @@ function renderBiz(seats){
     <tr><th colspan="3">指標と判定</th></tr>
     <tr><td>家賃比率</td><td class="num">${pct1(r.rentRatioActual)}</td>
         <td class="num">${judge(rentOK,rentWarn,rentOK?'良好（12%以下）':(rentWarn?'やや高い（15%以下）':'高すぎ'))}</td></tr>
-    <tr><td>労働分配率（人件費÷粗利）</td><td class="num">${pct1(r.laborShare)}</td>
-        <td class="num">${judge(laborOK,laborWarn,laborOK?'良好（50%以下）':(laborWarn?'やや高い':'高すぎ'))}</td></tr>
+    <tr><td>労働分配率（人件費÷粗利）<span style="color:var(--sub);font-size:11.5px">　理想 38%以下</span></td>
+        <td class="num">${pct1(r.laborShare)}</td>
+        <td class="num">${judge(laborOK,laborWarn,laborOK?'理想の38%以下':(laborWarn?'やや高い（45%以下）':'高すぎ'))}</td></tr>
     <tr><td>投資回収（税引後）</td><td class="num">${isFinite(r.recoveryMonths)?yen(r.recoveryMonths)+' ヶ月':'回収不能'}</td>
         <td class="num">${judge(recOK,recWarn,recOK?'目標30ヶ月以内':(recWarn?'やや長い':'要見直し'))}</td></tr>
     <tr><td>投資回収（税引前）</td><td class="num">${isFinite(r.recoveryPreTax)?yen(r.recoveryPreTax)+' ヶ月':'—'}</td><td></td></tr>
@@ -2542,9 +2553,6 @@ function renderBiz(seats){
     <tr><td>売場面積（間口${(S.room.W/1000).toFixed(1)}m × 奥行${(S.room.D/1000).toFixed(1)}m）</td>
         <td class="num">${areaM2.toFixed(1)} ㎡ ＝ ${r.tsubo} 坪</td>
         <td class="num">${S.biz.tsuboManual?'<span style="color:var(--warn)">坪数は手入力中</span>':'自動算出'}</td></tr>
-    <tr><td>うち客席エリア（カウンター内・倉庫・トイレを除く）</td>
-        <td class="num">${(areaM2-boh).toFixed(1)} ㎡ ＝ ${((areaM2-boh)/3.3058).toFixed(1)} 坪</td>
-        <td class="num">坪あたり売上 ${yen(areaM2-boh>0?r.sales/((areaM2-boh)/3.3058):0)} 円</td></tr>
     <tr><td>1日の売上（30日営業）</td><td class="num">${yen(r.dailySales)} 円</td><td></td></tr>
     <tr><td>満席1回転の売上（${seats}席 × ${yen(r.unit)}円）</td><td class="num">${yen(r.salesPerTurn)} 円</td>
         <td class="num">必要回転 ${r.turnsNeeded?r.turnsNeeded.toFixed(2):'—'} 回/日</td></tr>
