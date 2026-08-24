@@ -363,7 +363,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
         <button class="btn sm ghost" id="delB" style="color:var(--bad)">✕ 削除</button>
       </div>
       <canvas class="cv" id="ed" height="580" style="cursor:default"></canvas>
-      <p class="hint">ドラッグで移動（何もない所は画面移動）／ホイールで拡大縮小／R:回転 Delete:削除 矢印キー:微調整／間仕切り・カウンター等は選択時に出る<b style="color:var(--accent)">●ハンドル</b>を引っ張って長さ変更<br>
+      <p class="hint">ドラッグで移動（何もない所は画面移動）／ホイールまたは<b>2本指ピンチ</b>で拡大縮小／R:回転 Delete:削除 矢印キー:微調整／間仕切り・カウンター等は選択時に出る<b style="color:var(--accent)">●ハンドル</b>を引っ張って長さ変更<br>
       <b style="color:var(--accent)">🧲 吸着</b>ON中は、壁や他の什器の縁にぴったり付きます（Altを押しながらドラッグで一時解除）／
       <b style="color:var(--warn)">📏 計測</b>を押すと、通路幅などを2点ドラッグで測れます（Shiftで水平・垂直に固定）</p>
     </div>
@@ -549,6 +549,7 @@ const CAT={
  t6:{n:'6名テーブル 1500×600（500×600 3台連結）',s:'6名卓',w:1500,h:600,seats:6},
  t2:{n:'2名テーブル 500×600（椅子は500側）',s:'2名卓',w:500,h:600,seats:2},
  high:{n:'ハイテーブル 500×600（椅子は500側）',s:'ハイ卓',w:500,h:600,seats:2},
+ high0:{n:'ハイテーブル 席なし 500×600',s:'ハイ卓(席なし)',w:500,h:600},
  round:{n:'丸テーブル 650φ',s:'丸卓',w:650,h:650,seats:3},
  counter:{n:'バーカウンター 4800×600×H1070（伸縮可）',s:'カウンター',w:4800,h:600,rez:1},
  counter0:{n:'カウンター 席なし（サービス用・伸縮可）',s:'カウンター(席なし)',w:2400,h:600,rez:1},
@@ -565,6 +566,7 @@ const CAT={
  ice:{n:'製氷機 1000×600',s:'製氷機',w:1000,h:600,kit:1,hgt:800},
  dfridge:{n:'ドリンク冷蔵庫 880×450',s:'ドリンク冷蔵',w:880,h:450,kit:1,hgt:1900},
  showcase:{n:'冷蔵ショーケース 900×650',s:'冷蔵ショーケース',w:900,h:650,kit:1,hgt:1900},
+ wine:{n:'ワインセラー 600×600',s:'ワインセラー',w:600,h:600,kit:1,hgt:1500},
  sink2:{n:'2層シンク 1200×600',s:'2層シンク',w:1200,h:600,kit:1,hgt:850,sink:2},
  sink1:{n:'1層シンク 450×600',s:'1層シンク',w:450,h:600,kit:1,hgt:850,sink:1},
  work:{n:'作業台 1180×600（伸縮可・ガス台兼用）',s:'作業台',w:1180,h:600,rez:1,kit:1,hgt:850},
@@ -666,7 +668,7 @@ const FIN={
  fabrics:[{n:'チャコール',v:'#3a3835'},{n:'キャメル',v:'#b98a52'},{n:'ワインレッド',v:'#7d2b30'},
           {n:'モスグリーン',v:'#5d6e52'},{n:'ネイビー',v:'#31435c'},{n:'アイボリー',v:'#d8cbb4'}]
 };
-const WOOD_T=['t4','t6','t2','high','round','counter','counter0','reg','wall','poker','poker10','rect','circle'];
+const WOOD_T=['t4','t6','t2','high','high0','round','counter','counter0','reg','wall','poker','poker10','rect','circle'];
 const FAB_T=['t4','t6','t2','high','round','chair','counter','sofa','poker','poker10'];
 const LEG_T=['t4','t6','t2','high','round'];
 const woodOf=it=>(it.fin&&it.fin.wood)||(S.style?S.style.c.wood:'#b08655');
@@ -873,14 +875,35 @@ function renderCalib(){
 {
   const c=$('ccv');
   let moved=false;
+  const ptrs=new Map();let pinch=null;
+  const pmid=()=>{const a=[...ptrs.values()];return{x:(a[0].x+a[1].x)/2,y:(a[0].y+a[1].y)/2}};
+  const pdist=()=>{const a=[...ptrs.values()];return Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)};
+  const endPtr=e=>{ptrs.delete(e.pointerId);if(ptrs.size<2)pinch=null};
+  c.addEventListener('pointercancel',endPtr);
   c.addEventListener('pointerdown',e=>{
     c.setPointerCapture(e.pointerId);moved=false;
     const r=c.getBoundingClientRect(),sp={x:e.clientX-r.left,y:e.clientY-r.top};
+    ptrs.set(e.pointerId,sp);
+    if(ptrs.size===2){calib.drag=null;const m=pmid();
+      pinch={d0:pdist(),z0:calib.view.z,w0:cs2w(m)};renderCalib();return}
+    if(ptrs.size>2)return;
     if(calib.mode==='rect'&&calib.mmPerPx){
       const w=cs2w(sp);calib.rect={x:w.x,y:w.y,w:0,h:0};calib.drag={t:'rect',sx:w.x,sy:w.y};
     }else calib.drag={t:'pan',sx:sp.x,sy:sp.y,vx:calib.view.x,vy:calib.view.y};
   });
   c.addEventListener('pointermove',e=>{
+    if(ptrs.has(e.pointerId)){const q=c.getBoundingClientRect();
+      ptrs.set(e.pointerId,{x:e.clientX-q.left,y:e.clientY-q.top})}
+    if(pinch&&ptrs.size>=2){
+      const m=pmid(),d=pdist();
+      if(pinch.d0>0){
+        calib.view.z=clamp(pinch.z0*(d/pinch.d0),.05,6);
+        calib.view.x=pinch.w0.x-m.x/calib.view.z;
+        calib.view.y=pinch.w0.y-m.y/calib.view.z;
+        renderCalib();
+      }
+      return;
+    }
     if(!calib.drag)return;
     const r=c.getBoundingClientRect(),sp={x:e.clientX-r.left,y:e.clientY-r.top};
     if(calib.drag.t==='pan'){
@@ -895,6 +918,7 @@ function renderCalib(){
     renderCalib();
   });
   c.addEventListener('pointerup',e=>{
+    endPtr(e);
     const wasRect=calib.drag&&calib.drag.t==='rect';
     calib.drag=null;
     const r=c.getBoundingClientRect(),sp={x:e.clientX-r.left,y:e.clientY-r.top};
@@ -1486,9 +1510,18 @@ function hitTest(w){
 }
 {
   const c=$('ed');let drag=null;
+  // 2本指のピンチ操作（地図と同じ感覚で拡大縮小・移動）
+  const ptrs=new Map();let pinch=null;
+  const pmid=()=>{const a=[...ptrs.values()];return{x:(a[0].x+a[1].x)/2,y:(a[0].y+a[1].y)/2}};
+  const pdist=()=>{const a=[...ptrs.values()];return Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)};
+  const endPtr=e=>{ptrs.delete(e.pointerId);if(ptrs.size<2)pinch=null};
+  c.addEventListener('pointercancel',endPtr);
   c.addEventListener('pointerdown',e=>{
     c.setPointerCapture(e.pointerId);
     const r=c.getBoundingClientRect(),sp={x:e.clientX-r.left,y:e.clientY-r.top},w=s2w(sp);
+    ptrs.set(e.pointerId,sp);
+    if(ptrs.size===2){drag=null;const m=pmid();pinch={d0:pdist(),z0:view.z,w0:s2w(m)};renderEd();return}
+    if(ptrs.size>2)return;
     if(S.measMode){   // 計測モード：ドラッグで2点間を計測
       const m={x1:Math.round(w.x),y1:Math.round(w.y),x2:Math.round(w.x),y2:Math.round(w.y)};
       S.meas.push(m);drag={t:'meas',m};renderEd();return;
@@ -1505,6 +1538,17 @@ function hitTest(w){
     syncSel();renderEd();
   });
   c.addEventListener('pointermove',e=>{
+    if(ptrs.has(e.pointerId)){const q=c.getBoundingClientRect();
+      ptrs.set(e.pointerId,{x:e.clientX-q.left,y:e.clientY-q.top})}
+    if(pinch&&ptrs.size>=2){
+      const m=pmid(),d=pdist();
+      if(pinch.d0>0){
+        view.z=clamp(pinch.z0*(d/pinch.d0),.0012,1.2);
+        view.x=pinch.w0.x-m.x/view.z;view.y=pinch.w0.y-m.y/view.z;
+        renderEd();
+      }
+      return;
+    }
     if(!drag)return;
     const r=c.getBoundingClientRect(),sp={x:e.clientX-r.left,y:e.clientY-r.top};
     if(drag.t==='meas'){
@@ -1577,7 +1621,8 @@ function hitTest(w){
     }
     renderEd();
   });
-  c.addEventListener('pointerup',()=>{
+  c.addEventListener('pointerup',e=>{
+    endPtr(e);
     if(drag&&drag.t==='meas'){
       const m=drag.m;
       if(Math.hypot(m.x2-m.x1,m.y2-m.y1)<80)S.meas.pop();  // ただのクリックは無視
@@ -1589,7 +1634,7 @@ function hitTest(w){
   c.addEventListener('wheel',e=>{
     e.preventDefault();
     const r=c.getBoundingClientRect(),sp={x:e.clientX-r.left,y:e.clientY-r.top},w=s2w(sp);
-    view.z=clamp(view.z*wheelF(e),.008,1.2);
+    view.z=clamp(view.z*wheelF(e),.0012,1.2);
     view.x=w.x-sp.x/view.z;view.y=w.y-sp.y/view.z;
     renderEd();
   },{passive:false});
@@ -1735,8 +1780,8 @@ function addItem(t){
   syncSel();render3D();updateAll();animFlash();
 }
 const PAL_GROUPS=[
- {t:'客席・ダーツ',k:['t2','t4','t6','high','round','chair','counter','counter0','sofa','dart','poker','poker10']},
- {t:'厨房・設備（恵比寿基本寸法）',k:['kitchen','fridge','fridge2','freezer2','freezer','ice','dfridge','showcase','sink2','sink1','work','shelf','reg']},
+ {t:'客席・ダーツ',k:['t2','t4','t6','high','high0','round','chair','counter','counter0','sofa','dart','poker','poker10']},
+ {t:'厨房・設備（恵比寿基本寸法）',k:['kitchen','fridge','fridge2','freezer2','freezer','ice','dfridge','showcase','wine','sink2','sink1','work','shelf','reg']},
  {t:'建築・その他',k:['storage','wc','door','door2','sdoor','wall','swall','pillar','beam','rect','circle']}
 ];
 PAL_GROUPS.forEach(g=>{
@@ -1945,15 +1990,27 @@ function setPreset(p){
 document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>setPreset(b.dataset.view));
 {
   const c=$('p3d');let drag=null;
+  const ptrs=new Map();let pinch=null;
+  const pdist=()=>{const a=[...ptrs.values()];return Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)};
+  const endPtr=e=>{ptrs.delete(e.pointerId);if(ptrs.size<2)pinch=null};
+  c.addEventListener('pointercancel',endPtr);
   c.addEventListener('pointerdown',e=>{c.setPointerCapture(e.pointerId);
+    ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(ptrs.size===2){drag=null;pinch={d0:pdist(),dist0:cam.dist};return}
     drag={x:e.clientX,y:e.clientY,t:cam.theta,p:cam.phi};c.style.cursor='grabbing'});
   c.addEventListener('pointermove',e=>{
+    if(ptrs.has(e.pointerId))ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pinch&&ptrs.size>=2){
+      const d=pdist();
+      if(pinch.d0>0&&d>0){cam.dist=clamp(pinch.dist0*(pinch.d0/d),1800,80000);render3D()}
+      return;
+    }
     if(!drag)return;
     cam.theta=drag.t-(e.clientX-drag.x)*.006;
     cam.phi=clamp(drag.p+(e.clientY-drag.y)*.004,.03,1.35);
     render3D();
   });
-  c.addEventListener('pointerup',()=>{drag=null;c.style.cursor='grab'});
+  c.addEventListener('pointerup',e=>{endPtr(e);drag=null;c.style.cursor='grab'});
   c.addEventListener('wheel',e=>{e.preventDefault();
     cam.dist=clamp(cam.dist/wheelF(e,0.0016),1800,80000);render3D()},{passive:false});
 }
@@ -2145,10 +2202,10 @@ function buildScene(){
         if(CAT[t].sink)addBox(P,cx,cy,rot,Math.max(200,w-120),Math.max(200,h-120),hg,hg+15,shade(col,.72));
       }
     }else{ // テーブル類
-      const th=t==='high'?1000:700;
+      const th=(t==='high'||t==='high0')?1000:700;
       const wc2=woodOf(it),fc=fabricOf(it),lg=legsOf(it);
       const lcol=lg==='steel'?'#2b2926':shade(wc2,.8);
-      if(t==='high'||t==='round'){
+      if(t==='high'||t==='high0'||t==='round'){
         addBox(P,cx,cy,rot,120,120,0,th,lcol);
         addBox(P,cx,cy,rot,440,440,0,35,lcol);
       }else{
