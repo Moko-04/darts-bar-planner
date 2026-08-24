@@ -660,10 +660,20 @@ function computeBiz(seats){
   const requiredOP30 = taxRate<1? (totalInitial/30)/(1-taxRate) : Infinity;
   const fixedTotal   = g('adCost')+rent+depMonthly+g('otherFixed');
   const salesFor30   = marginRate>0? (requiredOP30+fixedTotal)/marginRate : Infinity;
+  // 損益分岐点（原価・人件費を変動費、広告費・家賃・減価償却・その他固定費を固定費として算出）
+  const beSales   = marginRate>0? fixedTotal/marginRate : Infinity;              // 分岐点の月商
+  const beCash    = marginRate>0? Math.max(0,fixedTotal-depMonthly)/marginRate : Infinity; // 現金ベース
+  const beDaily   = beSales/30;
+  const beGuests  = unit>0? beDaily/unit : 0;                                    // 分岐点の1日客数
+  const beTurns   = (seats*unit)>0? beDaily/(seats*unit) : 0;                    // 分岐点の1日回転数
+  const beRatio   = sales>0? beSales/sales : 0;                                  // 損益分岐点比率
+  const safety    = 1-beRatio;                                                   // 安全余裕率
   return{tsubo,rent,sales,unit,seats,tsuboUnit,targetSales,kpiPerTsubo,propertyCost,interiorCost,
     otherInit,totalInitial,depBase,depMonthly,costOfGoods,grossProfit,laborCost,otherExpenses,
     sgaTotal,operatingProfit,afterTaxProfit,recoveryMonths,recoveryPreTax,laborShare,
-    dailySales,salesPerTurn,turnsNeeded,salesFor30,rentRatioActual:sales>0?rent/sales:0};
+    dailySales,salesPerTurn,turnsNeeded,salesFor30,marginRate,fixedTotal,
+    beSales,beCash,beDaily,beGuests,beTurns,beRatio,safety,
+    rentRatioActual:sales>0?rent/sales:0};
 }
 
 /* 仕上げ（家具ごとに上書きできる） */
@@ -2507,6 +2517,7 @@ function renderBiz(seats){
     <div class="kpi"><div class="l">税引後利益（月）</div><div class="v">${yen(r.afterTaxProfit/1e4)}<small>万円</small></div></div>
     <div class="kpi"><div class="l">投資回収</div><div class="v">${isFinite(r.recoveryMonths)?yen(r.recoveryMonths):'—'}<small>ヶ月</small></div></div>
     <div class="kpi"><div class="l">必要回転数／日</div><div class="v">${r.turnsNeeded?r.turnsNeeded.toFixed(2):'—'}<small>回</small></div></div>
+    <div class="kpi"><div class="l">損益分岐点 月商</div><div class="v">${isFinite(r.beSales)?yen(r.beSales/1e4):'—'}<small>万円</small></div></div>
   </div>
   <div class="two">
     <div>
@@ -2536,6 +2547,26 @@ function renderBiz(seats){
       </table>
     </div>
   </div>
+  <table style="margin-top:16px">
+    <tr><th colspan="3">損益分岐点（ブレークイーブン）</th></tr>
+    <tr><td><b>損益分岐点 月商</b><span style="color:var(--sub);font-size:11.5px">　これを超えると営業利益が出ます</span></td>
+        <td class="num"><b>${yen(r.beSales)} 円</b></td>
+        <td class="num">${r.sales>=r.beSales?judge(1,0,'到達（黒字）'):judge(0,0,'あと '+yen(r.beSales-r.sales)+' 円')}</td></tr>
+    <tr><td>損益分岐点 日商（30日営業）</td><td class="num">${yen(r.beDaily)} 円</td>
+        <td class="num">客数 ${yen(r.beGuests)} 人／日</td></tr>
+    <tr><td>損益分岐点の回転数（${seats}席・単価${yen(r.unit)}円）</td>
+        <td class="num">${r.beTurns?r.beTurns.toFixed(2):'—'} 回／日</td>
+        <td class="num">満席率70%なら ${r.beTurns?(r.beTurns/0.7).toFixed(2):'—'} 回</td></tr>
+    <tr><td>損益分岐点比率（分岐点 ÷ 想定月商）</td><td class="num">${pct1(r.beRatio)}</td>
+        <td class="num">${judge(r.beRatio<=0.8,r.beRatio<=0.9,r.beRatio<=0.8?'余裕あり（80%以下）':(r.beRatio<=0.9?'やや厳しい':'危険水準'))}</td></tr>
+    <tr><td>安全余裕率（売上がどこまで落ちても赤字にならないか）</td><td class="num">${pct1(r.safety)}</td>
+        <td class="num">${r.safety>0?yen(r.sales-r.beSales)+' 円まで減少可':'すでに赤字'}</td></tr>
+    <tr><td>現金ベースの分岐点<span style="color:var(--sub);font-size:11.5px">　減価償却を除いた、資金が回り始める売上</span></td>
+        <td class="num">${yen(r.beCash)} 円</td>
+        <td class="num">${r.sales>=r.beCash?judge(1,0,'到達'):judge(0,1,'あと '+yen(r.beCash-r.sales)+' 円')}</td></tr>
+    <tr><td>限界利益率（1 − 原価率 − 人件費率）</td><td class="num">${pct1(r.marginRate)}</td>
+        <td class="num">固定費 ${yen(r.fixedTotal)} 円／月</td></tr>
+  </table>
   <table style="margin-top:16px">
     <tr><th colspan="3">指標と判定</th></tr>
     <tr><td>家賃比率</td><td class="num">${pct1(r.rentRatioActual)}</td>
