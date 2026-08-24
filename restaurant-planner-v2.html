@@ -2168,13 +2168,11 @@ function buildScene(){
       const fp=loc2w(it,0,-h/2+580);
       addDisk(P,{x:fp.x,y:fp.y,z:1730},dir,235,'#33333a');
       addDisk(P,{x:fp.x+dir.x*6,y:fp.y+dir.y*6,z:1730},dir,80,cc.accent);
-      // スローライン（壁面から2760）：床に貼った標示＋その上のライン材
-      const lp=loc2w(it,0,-h/2+2760);
-      const lwid=Math.max(300,w-80);
-      addBox(P,lp.x,lp.y,rot,lwid,120,4,10,'#8d9298');      // 下地（縁取り）
-      addBox(P,lp.x,lp.y,rot,lwid,60,10,32,'#f2f4f6');      // スローライン本体（白）
-      // 投げる位置の目印（ラインの中央に短い横棒）
-      addBox(P,lp.x,lp.y,rot,260,150,10,34,'#ffffff');
+      // スローライン（壁面から2760）：床に貼った平らな白い標示
+      const lwid=Math.max(300,w-80),lY=-h/2+2760,lHalf=40;   // 幅80mmの標示
+      P.push({pts:[loc2wz(it,-lwid/2,lY-lHalf,6),loc2wz(it,lwid/2,lY-lHalf,6),
+                   loc2wz(it,lwid/2,lY+lHalf,6),loc2wz(it,-lwid/2,lY+lHalf,6)],
+              col:'#f2f4f6',n:{x:0,y:0,z:1},floor:1});
       lights.push({x:mp.x,y:mp.y,z:2150,r:120,c:'#ffd7a0'});
     }else if(t==='counter'||t==='counter0'){
       // バーカウンター H1070（恵比寿基本寸法）／バーチェア300角
