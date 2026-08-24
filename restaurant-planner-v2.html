@@ -1327,7 +1327,7 @@ function renderEd(){
       ctx.beginPath();ctx.arc(0,-h/2+287,65,0,7);ctx.fillStyle=cc.accent;ctx.fill();
       // スローライン（壁面＝台背面から2760）
       const ly=-h/2+2760;
-      ctx.strokeStyle='#f5d76e';ctx.lineWidth=lw*1.6;
+      ctx.strokeStyle='#f2f4f6';ctx.lineWidth=lw*1.6;
       ctx.beginPath();ctx.moveTo(-w/2+40,ly);ctx.lineTo(w/2-40,ly);ctx.stroke();
     }else if(t==='poker'||t==='poker10'){
       // ポーカー台：ウッドレール＋グリーンフェルトのオーバル
@@ -1739,7 +1739,7 @@ function thumb(type){
     x.fillStyle='#2a2a31';x.fillRect(-d.w/2,-d.h/2,d.w,d.h);
     x.fillStyle='#111';x.fillRect(-325,-d.h/2,650,574);
     x.beginPath();x.arc(0,-d.h/2+287,195,0,7);x.strokeStyle='#c96f2c';x.stroke();
-    x.strokeStyle='#f5d76e';x.beginPath();x.moveTo(-d.w/2+60,-d.h/2+2760);x.lineTo(d.w/2-60,-d.h/2+2760);x.stroke();
+    x.strokeStyle='#f2f4f6';x.beginPath();x.moveTo(-d.w/2+60,-d.h/2+2760);x.lineTo(d.w/2-60,-d.h/2+2760);x.stroke();
   }else if(t==='poker'||t==='poker10'){
     x.fillStyle='#a97f4f';x.beginPath();x.ellipse(0,0,d.w/2,d.h/2,0,0,7);x.fill();
     x.fillStyle='#2e6b4f';x.beginPath();x.ellipse(0,0,d.w/2-140,d.h/2-140,0,0,7);x.fill();
@@ -2168,9 +2168,13 @@ function buildScene(){
       const fp=loc2w(it,0,-h/2+580);
       addDisk(P,{x:fp.x,y:fp.y,z:1730},dir,235,'#33333a');
       addDisk(P,{x:fp.x+dir.x*6,y:fp.y+dir.y*6,z:1730},dir,80,cc.accent);
-      // スローライン（壁面から2760）
-      const l1=loc2w(it,-w/2+50,-h/2+2760),l2=loc2w(it,w/2-50,-h/2+2760);
-      P.push({pts:[{x:l1.x,y:l1.y,z:5},{x:l2.x,y:l2.y,z:5},{x:l2.x,y:l2.y,z:6},{x:l1.x,y:l1.y,z:6}],col:'#f5d76e',n:{x:0,y:0,z:1},line:1});
+      // スローライン（壁面から2760）：床に貼った標示＋その上のライン材
+      const lp=loc2w(it,0,-h/2+2760);
+      const lwid=Math.max(300,w-80);
+      addBox(P,lp.x,lp.y,rot,lwid,120,4,10,'#8d9298');      // 下地（縁取り）
+      addBox(P,lp.x,lp.y,rot,lwid,60,10,32,'#f2f4f6');      // スローライン本体（白）
+      // 投げる位置の目印（ラインの中央に短い横棒）
+      addBox(P,lp.x,lp.y,rot,260,150,10,34,'#ffffff');
       lights.push({x:mp.x,y:mp.y,z:2150,r:120,c:'#ffd7a0'});
     }else if(t==='counter'||t==='counter0'){
       // バーカウンター H1070（恵比寿基本寸法）／バーチェア300角
@@ -2428,7 +2432,7 @@ function updateAll(){
   else if(kitMin<800)push('warn',`カウンター内 ${kitMin}mm`,'650〜800mmは「1人が通れる」幅です。スタッフ同士のすれ違いはできません。');
   else push('ok',`カウンター内 ${kitMin}mm`,'基本の800mm以上を確保できています。');
   if(darts>0){
-    push('ok',`ダーツレーン ${darts}面`,'黄色線がスローライン（壁面から2,760mm・レーン必要奥行3,760mm＝恵比寿基本寸法）。ライン後方に600mm以上の通行余地があるか、図で確認してください。レーン正面を横切る動線はNGです。');
+    push('ok',`ダーツレーン ${darts}面`,'白線がスローライン（壁面から2,760mm・レーン必要奥行3,760mm＝恵比寿基本寸法）。ライン後方に600mm以上の通行余地があるか、図で確認してください。レーン正面を横切る動線はNGです。');
   }
   const golf=S.items.filter(i=>i.type==='golf').length;
   if(golf>0){
