@@ -263,7 +263,8 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
       <div id="cloudList" style="display:flex;flex-direction:column;gap:6px"></div>
     </div>
     <div id="projLib" class="hide" style="margin:14px 0 20px;padding:14px 16px;background:#faf9f8;border:1px solid var(--line);border-radius:12px">
-      <label class="f" style="margin-bottom:8px">📁 このPCに保存されている物件</label>
+      <label class="f" style="margin-bottom:8px">📁 このPCに保存されている物件
+        <button class="btn sm ghost" id="newProjB" style="margin-left:10px;font-weight:400">＋ 新規物件</button></label>
       <div id="projList" style="display:flex;flex-direction:column;gap:6px"></div>
     </div>
     <div class="tabs">
@@ -289,7 +290,8 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
     <div id="panePdf" class="hide">
       <div class="drop" id="drop">
         📐 ここに平面図の <b>PDF</b> または <b>画像(PNG/JPG)</b> をドラッグ＆ドロップ<br>
-        <span style="font-size:12px">またはクリックしてファイルを選択</span>
+        <span style="font-size:12px">またはクリックしてファイルを選択</span><br>
+        <span style="font-size:11.5px;color:var(--accent)">読み込んだ図面は<b>新しい物件</b>として作成されます（開いている物件は上書きされません）</span>
         <input type="file" id="fileIn" accept="application/pdf,image/*" hidden>
       </div>
       <div id="calibArea" class="hide">
@@ -761,9 +763,10 @@ $('n2').onclick=()=>{
       return;
     }
     applyCalib();
+    S.projId=null;S.projName=null;      // 図面の取り込みは必ず新規物件（前の物件は残す）
   }else{
     S.room.W=+$('width').value*1000;S.room.D=+$('depth').value*1000;S.room.aisle=+$('aisle').value;
-    S.bg=null;
+    if(!S.projId)S.bg=null;             // 既存物件を開いている間は下絵を消さない
   }
   ensureBiz();S.biz.tsuboManual=0;syncTsubo();   // 売場面積から坪数を自動計算
   if(!S.bg&&S.items.length===0)seedAuto();
@@ -771,7 +774,8 @@ $('n2').onclick=()=>{
   if(!S.projId){
     S.projId='p'+Date.now().toString(36);
     const d=new Date();
-    S.projName=`物件 ${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    const stamp=`${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    S.projName=(tab==='pdf'&&calib.fileName)?`${calib.fileName} ${stamp}`:`物件 ${stamp}`;
   }
   $('projName').value=S.projName;
   buildStyleUI();goto(2);
@@ -806,6 +810,7 @@ async function loadFile(f){
       cv.getContext('2d').drawImage(img,0,0);
     }
     calib.img=cv;calib.mmPerPx=null;calib.rect=null;calib.done=false;calib.mode=null;calib.p1=calib.p2=null;
+    calib.fileName=(f.name||'').replace(/\.[^.]+$/,'');
     $('calibArea').classList.remove('hide');$('mRect').disabled=true;$('distIn').style.display='none';
     $('mScale').textContent='① 縮尺を合わせる（2点クリック）';$('mScale').classList.remove('okbtn');
     $('mRect').textContent='② 売場範囲を囲む（ドラッグ）';$('mRect').classList.remove('okbtn');
@@ -1950,6 +1955,14 @@ function renderProjLib(){
     </div>`;
   }).join('');
 }
+$('newProjB').onclick=()=>{
+  S.projId=null;S.projName=null;S.items=[];S.sel=null;S.undo=[];S.bg=null;
+  S.meas=[];S.guides=[];
+  calib.img=null;calib.mmPerPx=null;calib.rect=null;calib.done=false;calib.fileName=null;
+  $('calibArea').classList.add('hide');$('bgCtl').classList.add('hide');
+  $('saveSt').textContent='新規物件を作成します（保存済みの物件はそのまま残ります）';
+  setTab('num');
+};
 $('projList').onclick=async e=>{
   const o=e.target.dataset.open,dl=e.target.dataset.del;
   if(o){
