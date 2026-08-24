@@ -556,6 +556,7 @@ const CAT={
  chair:{n:'〇椅子 φ350（単体）',s:'〇椅子',w:350,h:350,seats:1},
  sofa:{n:'ベンチソファ',s:'ソファ',w:1600,h:550,rez:1},
  dart:{n:'ダーツレーン（台650×574・壁からライン2760・奥行3760）',s:'ダーツ',w:700,h:3760},
+ golf:{n:'シミュレーションゴルフ 打席3400×5000（天井2900以上）',s:'シムゴルフ',w:3400,h:5000,rez:1},
  poker:{n:'ポーカー台 2100×1100（8人掛け・オーバル）',s:'ポーカー8',w:2100,h:1100,seats:8},
  poker10:{n:'ポーカー台 2400×1200（10人掛け・オーバル）',s:'ポーカー10',w:2400,h:1200,seats:10},
  kitchen:{n:'カウンター内（通路 基本800／狭い場合650）',s:'カウンター内',w:4800,h:800,rez:1,zone:1},
@@ -566,7 +567,7 @@ const CAT={
  ice:{n:'製氷機 1000×600',s:'製氷機',w:1000,h:600,kit:1,hgt:800},
  dfridge:{n:'ドリンク冷蔵庫 880×450',s:'ドリンク冷蔵',w:880,h:450,kit:1,hgt:1900},
  showcase:{n:'冷蔵ショーケース 900×650',s:'冷蔵ショーケース',w:900,h:650,kit:1,hgt:1900},
- wine:{n:'ワインセラー 600×600',s:'ワインセラー',w:600,h:600,kit:1,hgt:1500},
+ wine:{n:'ワインセラー 750×575×H1760',s:'ワインセラー',w:750,h:575,kit:1,hgt:1760},
  sink2:{n:'2層シンク 1200×600',s:'2層シンク',w:1200,h:600,kit:1,hgt:850,sink:2},
  sink1:{n:'1層シンク 450×600',s:'1層シンク',w:450,h:600,kit:1,hgt:850,sink:1},
  work:{n:'作業台 1180×600（伸縮可・ガス台兼用）',s:'作業台',w:1180,h:600,rez:1,kit:1,hgt:850},
@@ -584,6 +585,8 @@ const CAT={
  rect:{n:'□ 長方形（自由造作・サイズ/高さ変更可）',s:'□ 長方形',w:1000,h:600,rez:1,shape:1,hgt:900},
  circle:{n:'〇 円・楕円（自由造作・サイズ/高さ変更可）',s:'〇 円',w:800,h:800,rez:1,shape:1,round:1,hgt:900}
 };
+const GOLF_MAT=3600;                       // スクリーン面から打席マット中心までの距離
+function golfMatY(h){return -h/2+Math.min(GOLF_MAT,Math.max(1200,h-1400))}
 function seatsOf(it){
   const t=it.type;
   if(t==='counter')return Math.floor(Math.max(it.w,it.h)/600);
@@ -1305,6 +1308,14 @@ function renderEd(){
       ctx.beginPath();
       if(CAT[t].round)ctx.ellipse(0,0,w/2,h/2,0,0,7);else ctx.rect(-w/2,-h/2,w,h);
       ctx.fill();ctx.globalAlpha=1;ctx.strokeStyle='#4a453f';ctx.stroke();
+    }else if(t==='golf'){
+      ctx.fillStyle='rgba(32,44,38,.6)';ctx.fillRect(-w/2,-h/2,w,h);
+      ctx.strokeStyle='#2e3a33';ctx.strokeRect(-w/2,-h/2,w,h);
+      ctx.fillStyle='#e8e6df';ctx.fillRect(-w/2+60,-h/2,w-120,200);          // スクリーン
+      const my=golfMatY(h);
+      ctx.fillStyle='#3f6b45';ctx.fillRect(-750,my-750,1500,1500);           // 打席マット
+      ctx.strokeStyle='#dfe6df';ctx.lineWidth=lw*1.4;ctx.strokeRect(-750,my-750,1500,1500);
+      ctx.beginPath();ctx.arc(0,my-150,95,0,7);ctx.fillStyle='#fff';ctx.fill();  // ティー位置
     }else if(t==='dart'){
       ctx.fillStyle='rgba(35,35,45,.75)';ctx.fillRect(-w/2,-h/2,w,h);
       ctx.strokeStyle='#26262b';ctx.strokeRect(-w/2,-h/2,w,h);
@@ -1387,6 +1398,7 @@ function renderEd(){
     if(t==='counter')drawLabel(ctx,it.cx,it.cy,`${seatsOf(it)}席`,'#fff',10);
     if(t==='counter0')drawLabel(ctx,it.cx,it.cy,'カウンター','#fff',9);
     if(t==='dart')drawLabel(ctx,it.cx,it.cy+it.h/4,'DARTS','#f5d76e',10);
+    if(t==='golf')drawLabel(ctx,it.cx,it.cy,'SIM GOLF','#cfe0d2',10);
     if(t==='door')drawLabel(ctx,it.cx,it.cy+300,'入口','#1f6f5c',11);
     if(t==='door2')drawLabel(ctx,it.cx,it.cy+280,'ドア','#7d6f5c',10);
     if(t==='sdoor')drawLabel(ctx,it.cx,it.cy+330,'引き戸','#1f6f5c',10);
@@ -1719,6 +1731,10 @@ function thumb(type){
     x.beginPath();
     if(CAT[t].round)x.ellipse(0,0,d.w/2,d.h/2,0,0,7);else x.rect(-d.w/2,-d.h/2,d.w,d.h);
     x.fill();x.stroke();
+  }else if(t==='golf'){
+    x.fillStyle='#26332c';x.fillRect(-d.w/2,-d.h/2,d.w,d.h);
+    x.fillStyle='#e8e6df';x.fillRect(-d.w/2+80,-d.h/2,d.w-160,260);
+    x.fillStyle='#3f6b45';x.fillRect(-750,golfMatY(d.h)-750,1500,1500);
   }else if(t==='dart'){
     x.fillStyle='#2a2a31';x.fillRect(-d.w/2,-d.h/2,d.w,d.h);
     x.fillStyle='#111';x.fillRect(-325,-d.h/2,650,574);
@@ -1780,7 +1796,7 @@ function addItem(t){
   syncSel();render3D();updateAll();animFlash();
 }
 const PAL_GROUPS=[
- {t:'客席・ダーツ',k:['t2','t4','t6','high','high0','round','chair','counter','counter0','sofa','dart','poker','poker10']},
+ {t:'客席・ダーツ',k:['t2','t4','t6','high','high0','round','chair','counter','counter0','sofa','dart','golf','poker','poker10']},
  {t:'厨房・設備（恵比寿基本寸法）',k:['kitchen','fridge','fridge2','freezer2','freezer','ice','dfridge','showcase','wine','sink2','sink1','work','shelf','reg']},
  {t:'建築・その他',k:['storage','wc','door','door2','sdoor','wall','swall','pillar','beam','rect','circle']}
 ];
@@ -2131,6 +2147,17 @@ function buildScene(){
       addBox(P,cx,cy,rot,w,h,0,430,fc);
       const bp=loc2w(it,0,-h/2+70);
       addBox(P,bp.x,bp.y,rot,w,140,430,930,shade(fc,.8));
+    }else if(t==='golf'){
+      P.push({pts:[loc2wz(it,-w/2,-h/2,3),loc2wz(it,w/2,-h/2,3),loc2wz(it,w/2,h/2,3),loc2wz(it,-w/2,h/2,3)],
+              col:'#24302a',n:{x:0,y:0,z:1}});
+      const gsh=Math.min(H-100,2900);
+      const scp=loc2w(it,0,-h/2+100);
+      addBox(P,scp.x,scp.y,rot,Math.max(600,w-120),200,0,gsh,'#e8e6df');      // スクリーン
+      const gmp=loc2w(it,0,golfMatY(h));
+      addBox(P,gmp.x,gmp.y,rot,1500,1500,0,45,'#3f6b45');                     // 打席マット
+      const gpp=loc2w(it,0,golfMatY(h)-900);
+      addBox(P,gpp.x,gpp.y,rot,320,320,H-260,H-90,'#26262b');                 // プロジェクター
+      lights.push({x:scp.x,y:scp.y,z:Math.min(H-300,2200),r:220,c:'#e8f0e8'});
     }else if(t==='dart'){
       P.push({pts:[loc2wz(it,-w/2,-h/2,3),loc2wz(it,w/2,-h/2,3),loc2wz(it,w/2,h/2,3),loc2wz(it,-w/2,h/2,3)],
               col:'#26262c',n:{x:0,y:0,z:1}});
@@ -2402,6 +2429,13 @@ function updateAll(){
   else push('ok',`カウンター内 ${kitMin}mm`,'基本の800mm以上を確保できています。');
   if(darts>0){
     push('ok',`ダーツレーン ${darts}面`,'黄色線がスローライン（壁面から2,760mm・レーン必要奥行3,760mm＝恵比寿基本寸法）。ライン後方に600mm以上の通行余地があるか、図で確認してください。レーン正面を横切る動線はNGです。');
+  }
+  const golf=S.items.filter(i=>i.type==='golf').length;
+  if(golf>0){
+    const okH=S.room.ceil>=2.9;
+    push(okH?'ok':'bad',`シミュレーションゴルフ ${golf}打席（天井高 ${S.room.ceil}m）`,
+      okH?'振り抜きに必要な天井高2.9mを確保できています。スクリーンから打席まで3.6m、打席後方にも1m程度の余裕を見てください。'
+        :'天井高が足りません。ドライバーが振り抜けるよう2.9m以上（できれば3.0m）が必要です。低い場合はアイアン限定の運用になります。');
   }
   if(!S.items.some(i=>i.type==='door'))push('warn','入口が未配置','「入口」を置くと動線の検討がしやすくなります。');
   if(!S.items.some(i=>i.type==='wc'))push('warn','トイレが未配置','ビル共用トイレ前提なら問題ありませんが、営業許可の要件を保健所に確認してください。');
