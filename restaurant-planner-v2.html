@@ -378,6 +378,10 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
         <button class="btn sm ghost" data-view="counter">カウンター前</button>
         <span class="sep"></span>
         <label>テイスト <select id="styleSel"></select></label>
+        <span class="sep"></span>
+        <label title="広くするほど、内装写真のような広角の見え方になります">画角
+          <input type="range" id="fovR" min="55" max="105" step="1" value="84" style="width:110px">
+          <b id="fovV" style="font-size:12px">84°</b></label>
         <span style="color:var(--sub);margin-left:auto">ドラッグで視点回転／ホイールで距離</span>
       </div>
       <canvas class="cv" id="p3d" height="540" style="background:#1c1b1e;cursor:grab"></canvas>
@@ -2018,19 +2022,32 @@ $('projIn').onchange=async e=>{
 };
 
 /* ================= 3Dパース ================= */
-const cam={theta:Math.PI*.7,phi:.68,dist:18000,tz:900};
+const cam={theta:Math.PI*.7,phi:.68,dist:18000,tz:900,fov:84};  // fov=水平画角(度)
 function setPreset(p){
   const M=Math.max(S.room.W,S.room.D);
   if(p==='bird'){cam.theta=Math.PI*.7;cam.phi=.85;cam.dist=M*1.35;cam.tz=0}
-  if(p==='door'){cam.theta=Math.PI/2;cam.phi=.06;cam.dist=S.room.D*.62;cam.tz=1350}
+  if(p==='door'){
+    // 入口の内側に立って奥を見る（目線1500mm）
+    cam.theta=Math.PI/2;cam.phi=.05;cam.tz=1200;
+    cam.dist=Math.max(1500,S.room.D/2-900);
+  }
   if(p==='counter'){
-    const co=S.items.find(i=>i.type==='counter');
-    cam.theta=Math.PI/2;cam.phi=.04;cam.tz=1250;
-    cam.dist=co?Math.max(2500,Math.hypot(co.cx-S.room.W/2,co.cy-S.room.D/2)+2600):S.room.D*.4;
+    // カウンターの2.5m手前に立つ
+    const co=S.items.find(i=>i.type==='counter'||i.type==='counter0');
+    cam.theta=Math.PI/2;cam.phi=.04;cam.tz=1200;
+    const d=co?Math.hypot(co.cx-S.room.W/2,co.cy-S.room.D/2)+2500:S.room.D*.35;
+    cam.dist=clamp(d,1500,S.room.D/2-600);
   }
   render3D();
 }
 document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>setPreset(b.dataset.view));
+$('fovR').addEventListener('input',e=>{
+  cam.fov=+e.target.value;
+  const eq=(18/Math.tan(cam.fov/2*Math.PI/180)).toFixed(0);
+  $('fovV').textContent=cam.fov+'°（'+eq+'mm相当）';
+  render3D();
+});
+$('fovV').textContent='84°（20mm相当）';
 {
   const c=$('p3d');let drag=null;
   const ptrs=new Map();let pinch=null;
@@ -2328,7 +2345,8 @@ function render3D(){
   let right={x:-fwd.y,y:fwd.x,z:0};
   const rl=Math.hypot(right.x,right.y)||1;right={x:right.x/rl,y:right.y/rl,z:0};
   const up={x:fwd.y*right.z-fwd.z*right.y,y:fwd.z*right.x-fwd.x*right.z,z:fwd.x*right.y-fwd.y*right.x};
-  const f=chh*1.05;
+  // 焦点距離は水平画角から求める（キャンバス幅が変わっても写る範囲は一定）
+  const f=(cw/2)/Math.tan((cam.fov||84)/2*Math.PI/180);
   const NEAR=120;
   const toView=p=>{const dx=p.x-cp.x,dy=p.y-cp.y,dz=p.z-cp.z;
     return{x:dx*right.x+dy*right.y+dz*right.z,y:dx*up.x+dy*up.y+dz*up.z,z:dx*fwd.x+dy*fwd.y+dz*fwd.z}};
