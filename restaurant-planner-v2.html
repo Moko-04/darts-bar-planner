@@ -360,7 +360,9 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
         <span id="selSize" class="hide">幅<input type="number" id="selW" step="50">× 奥行<input type="number" id="selH" step="50">mm</span>
         <span id="selHgtBox" class="hide">高さ<input type="number" id="selZ" step="50">mm</span>
         <span id="finRow" class="hide">｜ 木部<span class="swr" id="finWood"></span>張地<span class="swr" id="finFab"></span><button class="btn sm ghost" id="legB"></button></span>
-        <button class="btn sm ghost" id="rotB">⟳ 回転(R)</button>
+        <button class="btn sm ghost" id="rotB">⟳ 90°(R)</button>
+        <button class="btn sm ghost" id="rot45B" title="45度ずつ回します（Shift+R）">⟳ 45°</button>
+        <span id="rotSt" style="color:var(--sub)"></span>
         <button class="btn sm ghost" id="dupB">⧉ 複製</button>
         <button class="btn sm ghost" id="delB" style="color:var(--bad)">✕ 削除</button>
       </div>
@@ -1397,7 +1399,7 @@ function renderEd(){
       ctx.strokeRect(-w/2-60,-h/2-60,w+120,h+120);ctx.setLineDash([])}
     ctx.restore();
     if(it.id===S.sel){
-      const hw=(it.rot%180?it.h:it.w)/2,hh=(it.rot%180?it.w:it.h)/2;
+      const{hw,hh}=halfExt(it);
       const a=w2s({x:it.cx-hw,y:it.cy-hh});
       const bw=hw*2*z,bh=hh*2*z;
       ctx.setTransform(r,0,0,r,0,0);
@@ -1408,7 +1410,9 @@ function renderEd(){
       ctx.strokeStyle='#1f6f5c';ctx.lineWidth=1.5;
       ctx.strokeRect(a.x,a.y,bw,bh);
       // 選択中の寸法をmmで表示
-      const dimW=Math.round(hw*2),dimH=Math.round(hh*2);
+      const rot45=(it.rot%90)!==0;
+      const dimW=rot45?Math.round(it.w):Math.round(hw*2);
+      const dimH=rot45?Math.round(it.h):Math.round(hh*2);
       ctx.font='700 11px sans-serif';ctx.textAlign='center';ctx.textBaseline='alphabetic';
       const tag=(tx,ty,txt)=>{
         const wpx=ctx.measureText(txt).width+8;
@@ -1491,8 +1495,13 @@ function renderEd(){
   ctx.save();ctx.translate(rp.x-10,rp.y+S.room.D*z/2);ctx.rotate(-Math.PI/2);
   ctx.fillText(`${(S.room.D/1000).toFixed(1)}m`,0,0);ctx.restore();
 }
+// 回転を考慮した外接矩形の半分の幅・奥行（45度など90度以外にも対応）
+function halfExt(it){
+  const rd=it.rot*Math.PI/180,c=Math.abs(Math.cos(rd)),s2=Math.abs(Math.sin(rd));
+  return{hw:(it.w*c+it.h*s2)/2, hh:(it.w*s2+it.h*c)/2};
+}
 function aabb(it){
-  const hw=(it.rot%180?it.h:it.w)/2,hh=(it.rot%180?it.w:it.h)/2;
+  const{hw,hh}=halfExt(it);
   return{x0:it.cx-hw,x1:it.cx+hw,y0:it.cy-hh,y1:it.cy+hh};
 }
 function findOverlaps(){
@@ -1522,7 +1531,7 @@ function resHandles(it){ // 伸縮ハンドル（長さ方向は両端。fixH指
 function snapMove(it,cx,cy,off){
   const g25=v=>Math.round(v/25)*25;
   if(off||!S.snap)return{cx:g25(cx),cy:g25(cy),guides:[]};
-  const hw=(it.rot%180?it.h:it.w)/2,hh=(it.rot%180?it.w:it.h)/2;
+  const{hw,hh}=halfExt(it);
   const T=clamp(12/view.z,60,400);          // 画面上12px相当の吸着範囲
   const xs=[{v:0,w:1},{v:S.room.W,w:1}],ys=[{v:0,w:1},{v:S.room.D,w:1}];
   S.items.forEach(o=>{
@@ -1707,7 +1716,7 @@ window.addEventListener('keydown',e=>{
   const it=S.items.find(i=>i.id===S.sel);
   if(e.ctrlKey&&e.key==='d'&&it){e.preventDefault();dupSel();return}
   if(!it)return;
-  if(e.key==='r'||e.key==='R'){rotSel()}
+  if(e.key==='r'||e.key==='R'){rotSel(e.shiftKey?45:90)}
   else if(e.key==='Delete'||e.key==='Backspace'){delSel()}
   else if(e.key.startsWith('Arrow')){
     e.preventDefault();pushUndo();
@@ -1717,14 +1726,16 @@ window.addEventListener('keydown',e=>{
     renderEd();render3D();updateAll();
   }
 });
-function rotSel(){const it=S.items.find(i=>i.id===S.sel);if(!it)return;
-  pushUndo();it.rot=(it.rot+90)%360;renderEd();render3D();updateAll()}
+function rotSel(step){const it=S.items.find(i=>i.id===S.sel);if(!it)return;
+  pushUndo();it.rot=(it.rot+(step||90)+360)%360;
+  renderEd();render3D();updateAll();syncSel()}
 function delSel(){const i=S.items.findIndex(x=>x.id===S.sel);if(i<0)return;
   pushUndo();S.items.splice(i,1);S.sel=null;syncSel();renderEd();render3D();updateAll()}
 function dupSel(){const it=S.items.find(i=>i.id===S.sel);if(!it)return;
   pushUndo();const n={...it,id:S.idc++,cx:it.cx+400,cy:it.cy+400};S.items.push(n);S.sel=n.id;
   syncSel();renderEd();render3D();updateAll()}
-$('rotB').onclick=rotSel;$('delB').onclick=delSel;$('dupB').onclick=dupSel;
+$('rotB').onclick=()=>rotSel(90);$('rot45B').onclick=()=>rotSel(45);
+$('delB').onclick=delSel;$('dupB').onclick=dupSel;
 $('undoB').onclick=popUndo;
 $('fitB').onclick=()=>{fitView();renderEd()};
 $('measB').onclick=()=>{
@@ -1870,6 +1881,7 @@ function syncSel(){
   $('selName').textContent=CAT[it.type].n;
   const seats=seatsOf(it);
   $('selFix').textContent=seats?`（${seats}席）`:'';
+  if($('rotSt'))$('rotSt').textContent=it.rot?it.rot+'°':'';
   if(CAT[it.type].rez){
     $('selSize').classList.remove('hide');
     $('selW').value=it.w;$('selH').value=it.h;
