@@ -367,7 +367,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
         <button class="btn sm ghost" id="delB" style="color:var(--bad)">✕ 削除</button>
       </div>
       <canvas class="cv" id="ed" height="580" style="cursor:default"></canvas>
-      <p class="hint">ドラッグで移動（何もない所は画面移動）／ホイールまたは<b>2本指ピンチ</b>で拡大縮小／R:回転 Delete:削除 矢印キー:微調整／間仕切り・カウンター等は選択時に出る<b style="color:var(--accent)">●ハンドル</b>を引っ張って長さ変更<br>
+      <p class="hint">ドラッグで移動（何もない所は画面移動）／ホイールまたは<b>2本指ピンチ</b>で拡大縮小／R:回転 Delete:削除 矢印キー:微調整／<b>Ctrlを押しながらクリックで複数選択</b>（Ctrl+Aで全選択・Escで解除）／間仕切り・カウンター等は選択時に出る<b style="color:var(--accent)">●ハンドル</b>を引っ張って長さ変更<br>
       <b style="color:var(--accent)">🧲 吸着</b>ON中は、壁や他の什器の縁にぴったり付きます（Altを押しながらドラッグで一時解除）／
       <b style="color:var(--warn)">📏 計測</b>を押すと、通路幅などを2点ドラッグで測れます（Shiftで水平・垂直に固定）</p>
     </div>
@@ -709,7 +709,8 @@ const S={
   bg:null,           // {img,mmPerPx,origin:{x,y},visible,opacity}
   items:[],sel:null,undo:[],idc:1,
   meas:[],measMode:false,  // 計測線 [{x1,y1,x2,y2}]
-  snap:true,guides:[]      // 吸着（壁・什器の縁にぴったり付ける）
+  snap:true,guides:[],     // 吸着（壁・什器の縁にぴったり付ける）
+  sels:[]                  // 複数選択中のID（S.sel は主選択）
 };
 
 /* ================= ウィザード ================= */
@@ -1398,7 +1399,8 @@ function renderEd(){
     if(bad){ctx.strokeStyle='rgba(179,53,47,.9)';ctx.lineWidth=lw*2;ctx.setLineDash([120,80]);
       ctx.strokeRect(-w/2-60,-h/2-60,w+120,h+120);ctx.setLineDash([])}
     ctx.restore();
-    if(it.id===S.sel){
+    if((S.sels||[]).includes(it.id)){
+      const single=(S.sels||[]).length===1;
       const{hw,hh}=halfExt(it);
       const a=w2s({x:it.cx-hw,y:it.cy-hh});
       const bw=hw*2*z,bh=hh*2*z;
@@ -1419,10 +1421,10 @@ function renderEd(){
         ctx.fillStyle='rgba(255,255,255,.92)';ctx.fillRect(tx-wpx/2,ty-11,wpx,14);
         ctx.fillStyle='#1f6f5c';ctx.fillText(txt,tx,ty);
       };
-      if(bw>36)tag(a.x+bw/2,a.y-4,dimW+'mm');
-      if(bh>36){ctx.save();ctx.translate(a.x-6,a.y+bh/2);ctx.rotate(-Math.PI/2);
+      if(single&&bw>36)tag(a.x+bw/2,a.y-4,dimW+'mm');
+      if(single&&bh>36){ctx.save();ctx.translate(a.x-6,a.y+bh/2);ctx.rotate(-Math.PI/2);
         tag(0,0,dimH+'mm');ctx.restore()}
-      if(CAT[it.type].rez){
+      if(single&&CAT[it.type].rez){
         resHandles(it).forEach(hd=>{
           const p=w2s(hd);
           ctx.fillStyle='#1f6f5c';ctx.strokeStyle='#fff';ctx.lineWidth=2;
@@ -1557,8 +1559,19 @@ function snapMove(it,cx,cy,off){
   if(by)guides.push({y:by.edge,wall:by.wall});
   return{cx:bx?Math.round(bx.v):g25(cx),cy:by?Math.round(by.v):g25(cy),guides};
 }
+/* 選択の操作。Ctrl(⌘)+クリックで追加・解除できる */
+function selItems(){return S.items.filter(i=>(S.sels||[]).includes(i.id))}
+function setSel(id,additive){
+  if(!S.sels)S.sels=[];
+  if(id==null){S.sels=[];S.sel=null;return}
+  if(additive){
+    const i=S.sels.indexOf(id);
+    if(i>=0){S.sels.splice(i,1);if(S.sel===id)S.sel=S.sels[S.sels.length-1]??null}
+    else{S.sels.push(id);S.sel=id}
+  }else{S.sels=[id];S.sel=id}
+}
 function pushUndo(){S.undo.push(JSON.stringify(S.items));if(S.undo.length>60)S.undo.shift()}
-function popUndo(){if(!S.undo.length)return;S.items=JSON.parse(S.undo.pop());S.sel=null;syncSel();renderEd();render3D();updateAll()}
+function popUndo(){if(!S.undo.length)return;S.items=JSON.parse(S.undo.pop());setSel(null);syncSel();renderEd();render3D();updateAll()}
 function hitTest(w){
   for(let i=S.items.length-1;i>=0;i--){
     const it=S.items[i],r=-it.rot*Math.PI/180;
@@ -1589,7 +1602,7 @@ function hitTest(w){
     }
     // 選択中の可変什器なら、まず伸縮ハンドルを判定
     const selIt=S.items.find(i=>i.id===S.sel);
-    if(selIt&&CAT[selIt.type].rez){
+    if(selIt&&CAT[selIt.type].rez&&(S.sels||[]).length===1){
       const hd=resHandles(selIt).find(h=>{const q=w2s(h);return Math.hypot(q.x-sp.x,q.y-sp.y)<10});
       if(hd){
         pushUndo();
@@ -1603,8 +1616,18 @@ function hitTest(w){
       }
     }
     const it=hitTest(w);
-    if(it){S.sel=it.id;drag={t:'item',it,ox:w.x-it.cx,oy:w.y-it.cy,st:false}}
-    else{S.sel=null;drag={t:'pan',sx:sp.x,sy:sp.y,vx:view.x,vy:view.y}}
+    const add=e.ctrlKey||e.metaKey;
+    if(it){
+      const already=(S.sels||[]).includes(it.id);
+      if(add)setSel(it.id,true);
+      else if(!already)setSel(it.id,false);
+      else S.sel=it.id;                    // 既に選択済みならそのまま（まとめて動かす）
+      if((S.sels||[]).includes(it.id)){
+        drag={t:'item',it,ox:w.x-it.cx,oy:w.y-it.cy,st:false,
+              group:selItems().map(o=>({o,dx:o.cx-it.cx,dy:o.cy-it.cy}))};
+      }else drag=null;
+    }
+    else{if(!add)setSel(null);drag={t:'pan',sx:sp.x,sy:sp.y,vx:view.x,vy:view.y}}
     syncSel();renderEd();
   });
   c.addEventListener('pointermove',e=>{
@@ -1687,7 +1710,11 @@ function hitTest(w){
       if(!drag.st){pushUndo();drag.st=true}
       const w=s2w(sp);
       const sn=snapMove(drag.it,w.x-drag.ox,w.y-drag.oy,e.altKey);
-      drag.it.cx=sn.cx;drag.it.cy=sn.cy;S.guides=sn.guides;
+      const mdx=sn.cx-drag.it.cx,mdy=sn.cy-drag.it.cy;
+      if(drag.group&&drag.group.length>1){
+        drag.group.forEach(g=>{g.o.cx+=mdx;g.o.cy+=mdy});   // 選択中をまとめて移動
+      }else{drag.it.cx=sn.cx;drag.it.cy=sn.cy}
+      S.guides=sn.guides;
     }
     renderEd();
   });
@@ -1713,26 +1740,35 @@ window.addEventListener('keydown',e=>{
   if(S.step!==2)return;
   if(/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))return;
   if(e.ctrlKey&&e.key==='z'){e.preventDefault();popUndo();return}
-  const it=S.items.find(i=>i.id===S.sel);
-  if(e.ctrlKey&&e.key==='d'&&it){e.preventDefault();dupSel();return}
-  if(!it)return;
+  const list=selItems();
+  if(e.ctrlKey&&e.key==='a'){e.preventDefault();      // Ctrl+A ですべて選択
+    S.sels=S.items.map(i=>i.id);S.sel=S.sels[S.sels.length-1]??null;
+    syncSel();renderEd();return}
+  if(e.ctrlKey&&e.key==='d'&&list.length){e.preventDefault();dupSel();return}
+  if(!list.length)return;
   if(e.key==='r'||e.key==='R'){rotSel(e.shiftKey?45:90)}
   else if(e.key==='Delete'||e.key==='Backspace'){delSel()}
+  else if(e.key==='Escape'){setSel(null);syncSel();renderEd()}
   else if(e.key.startsWith('Arrow')){
     e.preventDefault();pushUndo();
     const d=e.shiftKey?250:50;
-    if(e.key==='ArrowLeft')it.cx-=d;if(e.key==='ArrowRight')it.cx+=d;
-    if(e.key==='ArrowUp')it.cy-=d;if(e.key==='ArrowDown')it.cy+=d;
+    let dx=0,dy=0;
+    if(e.key==='ArrowLeft')dx=-d;if(e.key==='ArrowRight')dx=d;
+    if(e.key==='ArrowUp')dy=-d;if(e.key==='ArrowDown')dy=d;
+    list.forEach(it=>{it.cx+=dx;it.cy+=dy});
     renderEd();render3D();updateAll();
   }
 });
-function rotSel(step){const it=S.items.find(i=>i.id===S.sel);if(!it)return;
-  pushUndo();it.rot=(it.rot+(step||90)+360)%360;
+function rotSel(step){const list=selItems();if(!list.length)return;
+  pushUndo();list.forEach(it=>{it.rot=(it.rot+(step||90)+360)%360});
   renderEd();render3D();updateAll();syncSel()}
-function delSel(){const i=S.items.findIndex(x=>x.id===S.sel);if(i<0)return;
-  pushUndo();S.items.splice(i,1);S.sel=null;syncSel();renderEd();render3D();updateAll()}
-function dupSel(){const it=S.items.find(i=>i.id===S.sel);if(!it)return;
-  pushUndo();const n={...it,id:S.idc++,cx:it.cx+400,cy:it.cy+400};S.items.push(n);S.sel=n.id;
+function delSel(){const ids=S.sels||[];if(!ids.length)return;
+  pushUndo();S.items=S.items.filter(i=>!ids.includes(i.id));
+  setSel(null);syncSel();renderEd();render3D();updateAll()}
+function dupSel(){const list=selItems();if(!list.length)return;
+  pushUndo();const ids=[];
+  list.forEach(it=>{const c={...it,id:S.idc++,cx:it.cx+400,cy:it.cy+400};S.items.push(c);ids.push(c.id)});
+  S.sels=ids;S.sel=ids[ids.length-1];
   syncSel();renderEd();render3D();updateAll()}
 $('rotB').onclick=()=>rotSel(90);$('rot45B').onclick=()=>rotSel(45);
 $('delB').onclick=delSel;$('dupB').onclick=dupSel;
@@ -1743,7 +1779,7 @@ $('measB').onclick=()=>{
   $('measB').classList.toggle('okbtn',S.measMode);
   $('measB').textContent=S.measMode?'📏 計測中（クリックで終了）':'📏 計測';
   $('ed').style.cursor=S.measMode?'crosshair':'default';
-  if(S.measMode){S.sel=null;syncSel()}
+  if(S.measMode){setSel(null);syncSel()}
   renderEd();
 };
 $('measClr').onclick=()=>{S.meas=[];renderEd()};
@@ -1845,7 +1881,7 @@ function addItem(t){
   const cx=clamp(Math.round(w.x/25)*25,Math.min(def.w/2,S.room.W/2),Math.max(S.room.W-def.w/2,S.room.W/2));
   const cy=clamp(Math.round(w.y/25)*25,Math.min(def.h/2,S.room.D/2),Math.max(S.room.D-def.h/2,S.room.D/2));
   const it=mk(t,cx,cy);
-  S.items.push(it);S.sel=it.id;
+  S.items.push(it);setSel(it.id,false);
   // 配置先が画面外なら視点を寄せる
   const sp=w2s({x:it.cx,y:it.cy}),cwpx=c.width/r,chpx=c.height/r;
   if(sp.x<40||sp.y<40||sp.x>cwpx-40||sp.y>chpx-40){
@@ -1876,19 +1912,20 @@ $('bgV').onchange=e=>{if(S.bg)S.bg.visible=e.target.checked;renderEd()};
 $('bgOp').oninput=e=>{if(S.bg)S.bg.opacity=e.target.value/100;renderEd()};
 function syncSel(){
   const it=S.items.find(i=>i.id===S.sel),bar=$('selbar');
+  const multi=(S.sels||[]).length>1;
   if(!it){bar.style.display='none';return}
   bar.style.display='flex';
-  $('selName').textContent=CAT[it.type].n;
-  const seats=seatsOf(it);
+  $('selName').textContent=multi?`${S.sels.length}点を選択中`:CAT[it.type].n;
+  const seats=multi?selItems().reduce((a,o)=>a+seatsOf(o),0):seatsOf(it);
   $('selFix').textContent=seats?`（${seats}席）`:'';
   if($('rotSt'))$('rotSt').textContent=it.rot?it.rot+'°':'';
-  if(CAT[it.type].rez){
+  if(CAT[it.type].rez&&!multi){
     $('selSize').classList.remove('hide');
     $('selW').value=it.w;$('selH').value=it.h;
     $('selH').disabled=!!CAT[it.type].fixH;
     $('selH').title=CAT[it.type].fixH?'この什器の厚みは固定です':'';
   }else $('selSize').classList.add('hide');
-  if(CAT[it.type].shape){
+  if(CAT[it.type].shape&&!multi){
     $('selHgtBox').classList.remove('hide');
     $('selZ').value=it.hgt||CAT[it.type].hgt||900;
   }else $('selHgtBox').classList.add('hide');
@@ -1909,17 +1946,19 @@ function syncSel(){
 function refreshSel(){renderEd();render3D();updateAll();syncSel()}
 $('finWood').onclick=e=>{
   const v=e.target.dataset.w;if(!v)return;
-  const it=S.items.find(i=>i.id===S.sel);if(!it)return;
-  pushUndo();it.fin={...(it.fin||{}),wood:v};refreshSel();
+  const list=selItems().filter(o=>WOOD_T.includes(o.type));if(!list.length)return;
+  pushUndo();list.forEach(o=>{o.fin={...(o.fin||{}),wood:v}});refreshSel();
 };
 $('finFab').onclick=e=>{
   const v=e.target.dataset.f;if(!v)return;
-  const it=S.items.find(i=>i.id===S.sel);if(!it)return;
-  pushUndo();it.fin={...(it.fin||{}),fab:v};refreshSel();
+  const list=selItems().filter(o=>FAB_T.includes(o.type));if(!list.length)return;
+  pushUndo();list.forEach(o=>{o.fin={...(o.fin||{}),fab:v}});refreshSel();
 };
 $('legB').onclick=()=>{
   const it=S.items.find(i=>i.id===S.sel);if(!it)return;
-  pushUndo();it.fin={...(it.fin||{}),legs:legsOf(it)==='steel'?'wood':'steel'};refreshSel();
+  const to=legsOf(it)==='steel'?'wood':'steel';
+  const list=selItems().filter(o=>LEG_T.includes(o.type));if(!list.length)return;
+  pushUndo();list.forEach(o=>{o.fin={...(o.fin||{}),legs:to}});refreshSel();
 };
 $('selW').onchange=e=>{const it=S.items.find(i=>i.id===S.sel);if(!it)return;
   pushUndo();it.w=clamp(+e.target.value,200,20000);renderEd();render3D();updateAll();syncSel()};
@@ -1982,7 +2021,7 @@ async function restoreProject(d,id){
   S.genre=GENRES.find(g=>g.id===d.genre)||S.genre;
   S.style=STYLES.find(s=>s.id===d.style)||S.style;
   S.room=d.room;S.biz=d.biz||{};S.items=d.items||[];ensureBiz();
-  S.idc=Math.max(0,...S.items.map(i=>i.id),0)+1;S.sel=null;S.undo=[];
+  S.idc=Math.max(0,...S.items.map(i=>i.id),0)+1;setSel(null);S.undo=[];
   S.projId=id||('p'+Date.now().toString(36));
   S.projName=d.name||'物件';
   if(d.bg&&d.bg.png){
@@ -2012,7 +2051,7 @@ function renderProjLib(){
   }).join('');
 }
 $('newProjB').onclick=()=>{
-  S.projId=null;S.projName=null;S.items=[];S.sel=null;S.undo=[];S.bg=null;
+  S.projId=null;S.projName=null;S.items=[];setSel(null);S.undo=[];S.bg=null;
   S.meas=[];S.guides=[];
   calib.img=null;calib.mmPerPx=null;calib.rect=null;calib.done=false;calib.fileName=null;
   $('calibArea').classList.add('hide');$('bgCtl').classList.add('hide');
