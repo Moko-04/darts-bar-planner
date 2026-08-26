@@ -1399,14 +1399,30 @@ function renderEd(){
     if(it.id===S.sel){
       const hw=(it.rot%180?it.h:it.w)/2,hh=(it.rot%180?it.w:it.h)/2;
       const a=w2s({x:it.cx-hw,y:it.cy-hh});
+      const bw=hw*2*z,bh=hh*2*z;
       ctx.setTransform(r,0,0,r,0,0);
-      ctx.strokeStyle='#1f6f5c';ctx.lineWidth=2;ctx.setLineDash([6,4]);
-      ctx.strokeRect(a.x-4,a.y-4,hw*2*z+8,hh*2*z+8);ctx.setLineDash([]);
+      // 実寸の外形ちょうどに枠を描く（内側に白、外側に緑で見やすく）
+      ctx.setLineDash([]);
+      ctx.strokeStyle='rgba(255,255,255,.85)';ctx.lineWidth=3;
+      ctx.strokeRect(a.x,a.y,bw,bh);
+      ctx.strokeStyle='#1f6f5c';ctx.lineWidth=1.5;
+      ctx.strokeRect(a.x,a.y,bw,bh);
+      // 選択中の寸法をmmで表示
+      const dimW=Math.round(hw*2),dimH=Math.round(hh*2);
+      ctx.font='700 11px sans-serif';ctx.textAlign='center';ctx.textBaseline='alphabetic';
+      const tag=(tx,ty,txt)=>{
+        const wpx=ctx.measureText(txt).width+8;
+        ctx.fillStyle='rgba(255,255,255,.92)';ctx.fillRect(tx-wpx/2,ty-11,wpx,14);
+        ctx.fillStyle='#1f6f5c';ctx.fillText(txt,tx,ty);
+      };
+      if(bw>36)tag(a.x+bw/2,a.y-4,dimW+'mm');
+      if(bh>36){ctx.save();ctx.translate(a.x-6,a.y+bh/2);ctx.rotate(-Math.PI/2);
+        tag(0,0,dimH+'mm');ctx.restore()}
       if(CAT[it.type].rez){
         resHandles(it).forEach(hd=>{
           const p=w2s(hd);
-          ctx.fillStyle='#1f6f5c';ctx.strokeStyle='#fff';ctx.lineWidth=2.5;
-          ctx.beginPath();ctx.arc(p.x,p.y,8,0,7);ctx.fill();ctx.stroke();
+          ctx.fillStyle='#1f6f5c';ctx.strokeStyle='#fff';ctx.lineWidth=2;
+          ctx.beginPath();ctx.arc(p.x,p.y,5.5,0,7);ctx.fill();ctx.stroke();
         });
       }
     }
@@ -1497,8 +1513,9 @@ function findOverlaps(){
 function resHandles(it){ // 伸縮ハンドル（長さ方向は両端。fixH指定の什器は厚み方向なし）
   const rd=it.rot*Math.PI/180,cs=Math.cos(rd),sn=Math.sin(rd);
   const pt=(lx,ly)=>({x:it.cx+lx*cs-ly*sn,y:it.cy+lx*sn+ly*cs});
-  const hs=[{axis:'w',sg:1,...pt(it.w/2,0)},{axis:'w',sg:-1,...pt(-it.w/2,0)}];
-  if(!CAT[it.type].fixH)hs.push({axis:'h',sg:1,...pt(0,it.h/2)},{axis:'h',sg:-1,...pt(0,-it.h/2)});
+  const off=14/(view.z||1);   // 画面上14px相当だけ外側に置き、本体は移動用に空ける
+  const hs=[{axis:'w',sg:1,...pt(it.w/2+off,0)},{axis:'w',sg:-1,...pt(-it.w/2-off,0)}];
+  if(!CAT[it.type].fixH)hs.push({axis:'h',sg:1,...pt(0,it.h/2+off)},{axis:'h',sg:-1,...pt(0,-it.h/2-off)});
   return hs;
 }
 /* 壁・什器の縁への吸着。自分の左右(上下)端・中心を、相手の端・中心に合わせる */
@@ -1564,8 +1581,17 @@ function hitTest(w){
     // 選択中の可変什器なら、まず伸縮ハンドルを判定
     const selIt=S.items.find(i=>i.id===S.sel);
     if(selIt&&CAT[selIt.type].rez){
-      const hd=resHandles(selIt).find(h=>{const q=w2s(h);return Math.hypot(q.x-sp.x,q.y-sp.y)<15});
-      if(hd){pushUndo();drag={t:'resize',it:selIt,axis:hd.axis,sg:hd.sg};return}
+      const hd=resHandles(selIt).find(h=>{const q=w2s(h);return Math.hypot(q.x-sp.x,q.y-sp.y)<10});
+      if(hd){
+        pushUndo();
+        // ハンドルを外側に置いた分、掴んだ瞬間に寸法が飛ばないよう差分を控える
+        const rd=-selIt.rot*Math.PI/180;
+        const dx=w.x-selIt.cx,dy=w.y-selIt.cy;
+        const lx=dx*Math.cos(rd)-dy*Math.sin(rd),ly=dx*Math.sin(rd)+dy*Math.cos(rd);
+        const hOff=hd.axis==='w' ? (hd.sg*lx+selIt.w/2)-selIt.w : (hd.sg*ly+selIt.h/2)-selIt.h;
+        drag={t:'resize',it:selIt,axis:hd.axis,sg:hd.sg,hOff};
+        return;
+      }
     }
     const it=hitTest(w);
     if(it){S.sel=it.id;drag={t:'item',it,ox:w.x-it.cx,oy:w.y-it.cy,st:false}}
@@ -1619,7 +1645,7 @@ function hitTest(w){
       const sg=drag.sg||1;                       // +1:進行側の端 / -1:反対側の端
       if(drag.axis==='w'){ // 掴んでいない側の端は固定したまま長さ変更
         const minW=zone?600:300;
-        let nw=clamp(Math.round((sg*lx+it.w/2)/50)*50,minW,25000);
+        let nw=clamp(Math.round((sg*lx+it.w/2-(drag.hOff||0))/50)*50,minW,25000);
         if(it.rot%90===0){                       // 軸が水平／垂直のときだけ吸着
           const horiz=it.rot%180===0;
           const fx=it.cx-sg*(it.w/2)*cs,fy=it.cy-sg*(it.w/2)*sn;   // 固定端
@@ -1633,7 +1659,7 @@ function hitTest(w){
         it.cx+=sg*d2*cs;it.cy+=sg*d2*sn;it.w=nw;
       }else{
         const minH=it.type==='wall'?60:(zone?600:300);
-        let nh=clamp(Math.round((sg*ly+it.h/2)/50)*50,minH,25000);
+        let nh=clamp(Math.round((sg*ly+it.h/2-(drag.hOff||0))/50)*50,minH,25000);
         if(it.rot%90===0){
           const horiz=it.rot%180!==0;            // h軸は w軸と直交
           const fx=it.cx+sg*(it.h/2)*sn,fy=it.cy-sg*(it.h/2)*cs;   // 固定端
