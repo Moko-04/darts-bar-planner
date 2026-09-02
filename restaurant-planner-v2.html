@@ -262,9 +262,14 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
       <label class="f" style="margin-bottom:8px">☁ クラウドの物件（ログイン中のアカウントに紐づき、どのPCからでも開けます）</label>
       <div id="cloudList" style="display:flex;flex-direction:column;gap:6px"></div>
     </div>
-    <div id="projLib" class="hide" style="margin:14px 0 20px;padding:14px 16px;background:#faf9f8;border:1px solid var(--line);border-radius:12px">
-      <label class="f" style="margin-bottom:8px">📁 このPCに保存されている物件
-        <button class="btn sm ghost" id="newProjB" style="margin-left:10px;font-weight:400">＋ 新規物件</button></label>
+    <div class="noprint" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0 4px">
+      <button class="btn sm ghost" id="newProjB">＋ 新規物件</button>
+      <button class="btn sm ghost" id="homeLoadB">📂 保存ファイルを開く</button>
+      <input type="file" id="homeIn" accept=".json" hidden>
+      <span id="homeLoadSt" style="font-size:11.5px;color:var(--sub)">書き出したJSONファイルは、新しい物件として追加されます</span>
+    </div>
+    <div id="projLib" class="hide" style="margin:6px 0 20px;padding:14px 16px;background:#faf9f8;border:1px solid var(--line);border-radius:12px">
+      <label class="f" style="margin-bottom:8px">📁 このPCに保存されている物件</label>
       <div id="projList" style="display:flex;flex-direction:column;gap:6px"></div>
     </div>
     <div class="tabs">
@@ -2090,13 +2095,31 @@ $('saveB').onclick=()=>{
   a.href=URL.createObjectURL(new Blob([JSON.stringify(projectData())],{type:'application/json'}));
   a.download=(S.projName||'店舗プラン')+'_'+new Date().toISOString().slice(0,10)+'.json';a.click();
 };
+/* 保存ファイル(JSON)を「新しい物件」として取り込む。既存の物件は上書きしない */
+async function importProjectFile(f,statusEl){
+  if(!f)return;
+  try{
+    const d=JSON.parse(await f.text());
+    if(!d||!d.room)throw new Error('この形式のファイルには対応していません');
+    const base=(d.name||(f.name||'物件').replace(/\.json$/i,'')).trim()||'物件';
+    const dup=lsIndex().some(p=>p.name===base);
+    d.name=dup?base+'（読込）':base;
+    await restoreProject(d,null);          // id=null なので必ず新規IDになる
+    S.projId='p'+Date.now().toString(36);  // 念のため新規IDを明示
+    S.projName=d.name;
+    if($('projName'))$('projName').value=S.projName;
+    autosave(true);
+    if($('saveSt'))$('saveSt').textContent='📂 「'+S.projName+'」を新規物件として読み込みました';
+    if(statusEl)statusEl.textContent='';
+  }catch(err){
+    const m='読み込めませんでした: '+err.message;
+    if(statusEl){statusEl.textContent='⚠ '+m;statusEl.style.color='var(--bad)'}else alert(m);
+  }
+}
 $('loadB').onclick=()=>$('projIn').click();
-$('projIn').onchange=async e=>{
-  const f=e.target.files[0];if(!f)return;
-  try{await restoreProject(JSON.parse(await f.text()),null);autosave()}
-  catch(err){alert('読み込めませんでした: '+err.message)}
-  e.target.value='';
-};
+$('projIn').onchange=async e=>{await importProjectFile(e.target.files[0]);e.target.value=''};
+$('homeLoadB').onclick=()=>$('homeIn').click();
+$('homeIn').onchange=async e=>{await importProjectFile(e.target.files[0],$('homeLoadSt'));e.target.value=''};
 
 /* ================= 3Dパース ================= */
 const cam={theta:Math.PI*.7,phi:.68,dist:18000,tz:900,fov:84};  // fov=水平画角(度)
