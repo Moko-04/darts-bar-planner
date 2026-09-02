@@ -567,6 +567,7 @@ const CAT={
  high:{n:'ハイテーブル 500×600（椅子は500側）',s:'ハイ卓',w:500,h:600,seats:2},
  high0:{n:'ハイテーブル 席なし 500×600',s:'ハイ卓(席なし)',w:500,h:600},
  round:{n:'丸テーブル 650φ',s:'丸卓',w:650,h:650,seats:3},
+ round0:{n:'丸テーブル 650φ 席なし',s:'丸卓(席なし)',w:650,h:650},
  counter:{n:'バーカウンター 4800×600×H1070（伸縮可）',s:'カウンター',w:4800,h:600,rez:1},
  counter0:{n:'カウンター 席なし（サービス用・伸縮可）',s:'カウンター(席なし)',w:2400,h:600,rez:1},
  chair:{n:'〇椅子 φ350（単体）',s:'〇椅子',w:350,h:350,seats:1},
@@ -701,7 +702,7 @@ const FIN={
  fabrics:[{n:'チャコール',v:'#3a3835'},{n:'キャメル',v:'#b98a52'},{n:'ワインレッド',v:'#7d2b30'},
           {n:'モスグリーン',v:'#5d6e52'},{n:'ネイビー',v:'#31435c'},{n:'アイボリー',v:'#d8cbb4'}]
 };
-const WOOD_T=['t4','t6','t2','high','high0','round','counter','counter0','reg','wall','poker','poker10','rect','circle'];
+const WOOD_T=['t4','t6','t2','high','high0','round','round0','counter','counter0','reg','wall','poker','poker10','rect','circle'];
 const FAB_T=['t4','t6','t2','high','round','chair','counter','sofa','poker','poker10'];
 const LEG_T=['t4','t6','t2','high','round'];
 const woodOf=it=>(it.fin&&it.fin.wood)||(S.style?S.style.c.wood:'#b08655');
@@ -1396,7 +1397,7 @@ function renderEd(){
       ctx.strokeStyle='#4a453f';ctx.strokeRect(-w/2,-h/2,w,h);
     }else{ // テーブル・カウンター
       ctx.fillStyle=woodOf(it);
-      if(t==='round'){ctx.beginPath();ctx.arc(0,0,w/2,0,7);ctx.fill();ctx.strokeStyle='#4a453f';ctx.stroke()}
+      if(t==='round'||t==='round0'){ctx.beginPath();ctx.arc(0,0,w/2,0,7);ctx.fill();ctx.strokeStyle='#4a453f';ctx.stroke()}
       else{ctx.fillRect(-w/2,-h/2,w,h);ctx.strokeStyle='#4a453f';ctx.strokeRect(-w/2,-h/2,w,h)}
       ctx.fillStyle=fabricOf(it);ctx.strokeStyle='#4a453f';
       chairsFor(it).forEach(chp=>{
@@ -1886,7 +1887,7 @@ function thumb(type){
     x.fillStyle=shade(fab,.7);x.fillRect(-d.w/2,-d.h/2,d.w,150);
   }else{
     x.fillStyle=wood;
-    if(t==='round'){x.beginPath();x.arc(0,0,d.w/2,0,7);x.fill()}
+    if(t==='round'||t==='round0'){x.beginPath();x.arc(0,0,d.w/2,0,7);x.fill()}
     else x.fillRect(-d.w/2,-d.h/2,d.w,d.h);
     if(t==='reg'){x.fillStyle='#5c5852';x.fillRect(-d.w/2,-d.h/2,d.w,120)}
     x.fillStyle=fab;
@@ -1922,7 +1923,7 @@ function addItem(t){
   syncSel();render3D();updateAll();animFlash();
 }
 const PAL_GROUPS=[
- {t:'客席・ダーツ',k:['t2','t4','t6','high','high0','round','chair','counter','counter0','sofa','dart','golf','poker','poker10']},
+ {t:'客席・ダーツ',k:['t2','t4','t6','high','high0','round','round0','chair','counter','counter0','sofa','dart','golf','poker','poker10']},
  {t:'厨房・設備（恵比寿基本寸法）',k:['kitchen','fridge','fridge2','freezer2','freezer','ice','dfridge','showcase','wine','sink2','sink1','work','shelf','reg']},
  {t:'建築・その他',k:['storage','wc','door','door2','sdoor','wall','swall','pillar','beam','rect','circle']}
 ];
@@ -2404,7 +2405,7 @@ function buildScene(){
       const th=(t==='high'||t==='high0')?1000:700;
       const wc2=woodOf(it),fc=fabricOf(it),lg=legsOf(it);
       const lcol=lg==='steel'?'#2b2926':shade(wc2,.8);
-      if(t==='high'||t==='high0'||t==='round'){
+      if(t==='high'||t==='high0'||t==='round'||t==='round0'){
         addBox(P,cx,cy,rot,120,120,0,th,lcol);
         addBox(P,cx,cy,rot,440,440,0,35,lcol);
       }else{
@@ -2413,7 +2414,7 @@ function buildScene(){
           const p=loc2w(it,lx,ly);addBox(P,p.x,p.y,rot,ls,ls,0,th,lcol);
         });
       }
-      if(t==='round')addBox(P,cx,cy,rot,w*.92,w*.92,th,th+40,wc2);
+      if(t==='round'||t==='round0')addBox(P,cx,cy,rot,w*.92,w*.92,th,th+40,wc2);
       else addBox(P,cx,cy,rot,w,h,th,th+40,wc2);
       chairsFor(it).forEach(chp=>{
         const sh=t==='high'?620:430;
