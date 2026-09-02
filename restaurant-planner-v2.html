@@ -601,6 +601,13 @@ const CAT={
  swall:{n:'造作壁（天井まで）',s:'造作壁',w:1800,h:100,rez:1},
  pillar:{n:'柱',s:'柱',w:600,h:600,rez:1},
  beam:{n:'梁（天井下がり）',s:'梁',w:3000,h:300,rez:1},
+ /* まとめて配置するセット。set の各要素は、セット中心からの相対位置(dx,dy) */
+ counterSet:{n:'カウンターセット（カウンター＋カウンター内800＋冷蔵・冷蔵）',s:'カウンターセット',
+   w:4800,h:2000,setOf:[
+     {type:'counter', dx:0,     dy:-700, w:4800,h:600},   // 客側のカウンター
+     {type:'kitchen', dx:0,     dy:0,    w:4800,h:800},   // カウンター内（通路800）
+     {type:'fridge2', dx:-1800, dy:700,  w:1200,h:600}    // バックバー側の冷蔵・冷蔵
+   ]},
  rect:{n:'□ 長方形（自由造作・サイズ/高さ変更可）',s:'□ 長方形',w:1000,h:600,rez:1,shape:1,hgt:900},
  circle:{n:'〇 円・楕円（自由造作・サイズ/高さ変更可）',s:'〇 円',w:800,h:800,rez:1,shape:1,round:1,hgt:900}
 };
@@ -1830,7 +1837,13 @@ function thumb(type){
   x.translate(44,34);x.scale(sc,sc);
   x.lineWidth=Math.max(35,2/sc);
   const wood='#a97f4f',fab='#6f6a72',t=type;
-  if(t==='kitchen'||t==='storage'){
+  if(d.setOf){
+    d.setOf.forEach(p=>{
+      x.fillStyle = p.type==='counter'?wood : (p.type==='kitchen'?'rgba(150,145,138,.35)':'#cfd1d5');
+      x.fillRect(p.dx-p.w/2,p.dy-p.h/2,p.w,p.h);
+      x.strokeStyle='#8d8880';x.strokeRect(p.dx-p.w/2,p.dy-p.h/2,p.w,p.h);
+    });
+  }else if(t==='kitchen'||t==='storage'){
     x.fillStyle='rgba(150,145,138,.3)';x.fillRect(-d.w/2,-d.h/2,d.w,d.h);
     x.strokeStyle='#8d8880';x.setLineDash([220,130]);x.strokeRect(-d.w/2,-d.h/2,d.w,d.h);
   }else if(t==='wc'){
@@ -1910,6 +1923,25 @@ function addItem(t){
   const c=$('ed'),r=window.devicePixelRatio||1;
   const w=s2w({x:c.width/r/2,y:c.height/r/2});
   const def=CAT[t];
+  if(def.setOf){   // セットは個々の什器に展開して置く
+    const cx0=clamp(Math.round(w.x/25)*25,Math.min(def.w/2,S.room.W/2),Math.max(S.room.W-def.w/2,S.room.W/2));
+    const cy0=clamp(Math.round(w.y/25)*25,Math.min(def.h/2,S.room.D/2),Math.max(S.room.D-def.h/2,S.room.D/2));
+    const ids=[];
+    def.setOf.forEach(p=>{
+      const o=mk(p.type,cx0+p.dx,cy0+p.dy,p.w,p.h,0);
+      S.items.push(o);ids.push(o.id);
+    });
+    S.sels=ids;S.sel=ids[0];
+    const sp0=w2s({x:cx0,y:cy0}),cw0=c.width/r,ch0=c.height/r;
+    if(sp0.x<40||sp0.y<40||sp0.x>cw0-40||sp0.y>ch0-40){
+      view.x=cx0-cw0/(2*view.z);view.y=cy0-ch0/(2*view.z);
+    }
+    flash={id:ids[0],until:performance.now()+1600};
+    c.scrollIntoView({behavior:'smooth',block:'nearest'});
+    syncSel();render3D();updateAll();animFlash();
+    if($('saveSt'))$('saveSt').textContent='カウンターセットを配置しました（3点を選択中：そのままドラッグでまとめて移動できます）';
+    return;
+  }
   // 見えている範囲の中央、かつ必ず部屋の内側に配置
   const cx=clamp(Math.round(w.x/25)*25,Math.min(def.w/2,S.room.W/2),Math.max(S.room.W-def.w/2,S.room.W/2));
   const cy=clamp(Math.round(w.y/25)*25,Math.min(def.h/2,S.room.D/2),Math.max(S.room.D-def.h/2,S.room.D/2));
@@ -1925,6 +1957,7 @@ function addItem(t){
   syncSel();render3D();updateAll();animFlash();
 }
 const PAL_GROUPS=[
+ {t:'セット（まとめて配置）',k:['counterSet']},
  {t:'客席・ダーツ',k:['t2','t4','t6','high','high0','round','round0','chair','counter','counter0','sofa','dart','golf','poker','poker10']},
  {t:'厨房・設備（恵比寿基本寸法）',k:['kitchen','fridge','fridge2','freezer2','freezer','ice','dfridge','showcase','wine','sink2','sink1','work','shelf','reg']},
  {t:'建築・その他',k:['storage','wc','door','door2','sdoor','wall','swall','pillar','beam','rect','circle']}
