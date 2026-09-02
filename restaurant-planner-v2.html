@@ -365,6 +365,8 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
         <span id="selSize" class="hide">幅<input type="number" id="selW" step="50">× 奥行<input type="number" id="selH" step="50">mm</span>
         <span id="selHgtBox" class="hide">高さ<input type="number" id="selZ" step="50">mm</span>
         <span id="finRow" class="hide">｜ 木部<span class="swr" id="finWood"></span>張地<span class="swr" id="finFab"></span><button class="btn sm ghost" id="legB"></button></span>
+        <span id="gapRow" class="hide">｜ 間隔<input type="number" id="gapV" value="600" step="50" style="width:72px">mm
+          <button class="btn sm ghost" id="gapB" title="選択した什器を、指定した隙間で一列に並べ直します">⇔ そろえる</button></span>
         <button class="btn sm ghost" id="rotB">⟳ 90°(R)</button>
         <button class="btn sm ghost" id="rot45B" title="45度ずつ回します（Shift+R）">⟳ 45°</button>
         <span id="rotSt" style="color:var(--sub)"></span>
@@ -1764,6 +1766,28 @@ window.addEventListener('keydown',e=>{
     renderEd();render3D();updateAll();
   }
 });
+/* 選択した什器を、指定した隙間(mm)で一列に並べ直す。
+   並びの向きは中心のばらつきが大きい軸で自動判定し、直交方向は先頭に揃える */
+function spaceSel(gap){
+  const list=selItems();
+  if(list.length<2){alert('2つ以上を選択してください（Ctrlを押しながらクリック）');return}
+  const xs=list.map(i=>i.cx),ys=list.map(i=>i.cy);
+  const horiz=(Math.max(...xs)-Math.min(...xs))>=(Math.max(...ys)-Math.min(...ys));
+  pushUndo();
+  const sorted=[...list].sort((a,b)=>horiz?a.cx-b.cx:a.cy-b.cy);
+  const first=sorted[0];
+  const cross=horiz?first.cy:first.cx;
+  let edge=horiz?aabb(first).x1:aabb(first).y1;
+  for(let k=1;k<sorted.length;k++){
+    const it=sorted[k],{hw,hh}=halfExt(it);
+    const half=horiz?hw:hh;
+    const c=Math.round(edge+gap+half);
+    if(horiz){it.cx=c;it.cy=Math.round(cross)}else{it.cy=c;it.cx=Math.round(cross)}
+    edge=horiz?aabb(it).x1:aabb(it).y1;
+  }
+  renderEd();render3D();updateAll();syncSel();
+  if($('saveSt'))$('saveSt').textContent='⇔ '+sorted.length+'点を間隔'+gap+'mmで並べました（'+(horiz?'横並び':'縦並び')+'）';
+}
 function rotSel(step){const list=selItems();if(!list.length)return;
   pushUndo();list.forEach(it=>{it.rot=(it.rot+(step||90)+360)%360});
   renderEd();render3D();updateAll();syncSel()}
@@ -1776,6 +1800,7 @@ function dupSel(){const list=selItems();if(!list.length)return;
   S.sels=ids;S.sel=ids[ids.length-1];
   syncSel();renderEd();render3D();updateAll()}
 $('rotB').onclick=()=>rotSel(90);$('rot45B').onclick=()=>rotSel(45);
+$('gapB').onclick=()=>spaceSel(clamp(+$('gapV').value||0,0,5000));
 $('delB').onclick=delSel;$('dupB').onclick=dupSel;
 $('undoB').onclick=popUndo;
 $('fitB').onclick=()=>{fitView();renderEd()};
@@ -1924,6 +1949,7 @@ function syncSel(){
   const seats=multi?selItems().reduce((a,o)=>a+seatsOf(o),0):seatsOf(it);
   $('selFix').textContent=seats?`（${seats}席）`:'';
   if($('rotSt'))$('rotSt').textContent=it.rot?it.rot+'°':'';
+  $('gapRow').classList.toggle('hide',!multi);
   if(CAT[it.type].rez&&!multi){
     $('selSize').classList.remove('hide');
     $('selW').value=it.w;$('selH').value=it.h;
