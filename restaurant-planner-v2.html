@@ -1799,9 +1799,28 @@ function spaceSel(gap){
   renderEd();render3D();updateAll();syncSel();
   if($('saveSt'))$('saveSt').textContent='⇔ '+sorted.length+'点を間隔'+gap+'mmで並べました（'+(horiz?'横並び':'縦並び')+'）';
 }
-function rotSel(step){const list=selItems();if(!list.length)return;
-  pushUndo();list.forEach(it=>{it.rot=(it.rot+(step||90)+360)%360});
-  renderEd();render3D();updateAll();syncSel()}
+function rotSel(step){
+  const list=selItems();if(!list.length)return;
+  const a=step||90;
+  pushUndo();
+  if(list.length===1){
+    list[0].rot=(list[0].rot+a+360)%360;
+  }else{
+    // 選択全体の外接矩形の中心を軸に、各什器の位置も一緒に回す
+    let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+    list.forEach(i=>{const b=aabb(i);
+      x0=Math.min(x0,b.x0);y0=Math.min(y0,b.y0);x1=Math.max(x1,b.x1);y1=Math.max(y1,b.y1)});
+    const gx=(x0+x1)/2,gy=(y0+y1)/2;
+    const rd=a*Math.PI/180,cs=Math.cos(rd),sn=Math.sin(rd);
+    list.forEach(i=>{
+      const dx=i.cx-gx,dy=i.cy-gy;
+      i.cx=Math.round(gx+dx*cs-dy*sn);
+      i.cy=Math.round(gy+dx*sn+dy*cs);
+      i.rot=(i.rot+a+360)%360;
+    });
+  }
+  renderEd();render3D();updateAll();syncSel();
+}
 function delSel(){const ids=S.sels||[];if(!ids.length)return;
   pushUndo();S.items=S.items.filter(i=>!ids.includes(i.id));
   setSel(null);syncSel();renderEd();render3D();updateAll()}
